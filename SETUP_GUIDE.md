@@ -5,12 +5,12 @@
 
 ## 🎯 What We'll Build First
 
-In **Phase 1**, we'll create three mock services:
+In **Phase 1**, we'll create three mock services to simulate real backend systems:
 1. **Mock CMS** (SOAP/XML service)
 2. **Mock ROS** (REST/JSON service)
 3. **Mock WMS** (TCP/IP service)
 
-These mock services will help us test our middleware without needing the real systems.
+These mock services will help us test our middleware without needing access to actual production systems.
 
 ---
 

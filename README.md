@@ -79,11 +79,39 @@ cd c:/Users/Chamudu Hansana/Desktop/Projects/SwiftLogistics
 ### Running the Project
 
 ```bash
-# Start all services with Docker Compose
+# Start all services with Docker Compose (coming soon)
 docker-compose up
 
 # Or start individual services
-npm run dev --workspace=mock-cms
+npm run dev:mock-ros    # REST API on port 4002
+npm run dev:mock-cms    # SOAP service on port 4000
+npm run dev:mock-wms    # TCP service on port 4001
+
+# Start all mock services at once
+npm run dev:all-mocks
+```
+
+### Testing the Services
+
+**Option 1: Browser Dashboard (Visual)**
+```bash
+# Open in browser
+test-dashboard.html
+```
+
+**Option 2: Command Line Tests**
+```bash
+# Test Mock ROS
+cd mock-services/mock-ros
+node test.js
+
+# Test Mock CMS
+cd mock-services/mock-cms
+node test.js
+
+# Test Mock WMS
+cd mock-services/mock-wms
+node test.js
 ```
 
 ## 📚 Documentation
@@ -101,12 +129,39 @@ This project is built incrementally with a focus on understanding:
 
 ## 📝 Implementation Phases
 
-- [x] Phase 0: Architecture Design
-- [ ] Phase 1: Mock Services (Week 1)
-- [ ] Phase 2: Integration Layer (Week 2-3)
-- [ ] Phase 3: Core Services (Week 3-4)
-- [ ] Phase 4: Client Applications (Week 4-5)
-- [ ] Phase 5: Documentation & Presentation (Week 5-6)
+- [x] **Phase 0: Architecture Design**
+  - [x] Complete architecture documentation
+  - [x] Middleware learning guide
+  - [x] Message broker comparison
+
+- [x] **Phase 1: Mock Services** ✅ COMPLETED!
+  - [x] Mock ROS (REST/JSON) - Port 4002
+  - [x] Mock CMS (SOAP/XML) - Port 4000
+  - [x] Mock WMS (TCP/IP) - Port 4001
+  - [x] Test scripts for all services
+  - [x] Browser test dashboard
+
+- [ ] **Phase 2: Integration Layer** (In Progress)
+  - [ ] RabbitMQ setup
+  - [ ] Protocol adapters (SOAP, REST, TCP)
+  - [ ] Message queue workers
+
+- [ ] **Phase 3: Core Services** (Week 3-4)
+  - [ ] API Gateway
+  - [ ] Order Service (SAGA)
+  - [ ] Auth Service
+  - [ ] WebSocket server
+
+- [ ] **Phase 4: Client Applications**
+  - [ ] Web portal (React)
+  - [ ] Real-time tracking interface
+  - [ ] Mobile app (optional)
+
+- [ ] **Phase 5: Polish & Features**
+  - [ ] Security enhancements
+  - [ ] Performance optimization
+  - [ ] Monitoring and logging
+  - [ ] Complete documentation
 
 ## 🛠️ Technology Stack
 
@@ -118,11 +173,21 @@ This project is built incrementally with a focus on understanding:
 - **WebSockets:** Socket.io
 - **Containerization:** Docker
 
-## 👥 Team
+## 👤 About This Project
 
-Assignment for SCS2314 - Middleware Architecture
-University of Colombo School of Computing
+A personal learning project exploring middleware architecture patterns and microservices integration. Built incrementally to understand the "why," "what," and "how" of distributed systems.
+
+### Learning Goals
+- Master different communication protocols (REST, SOAP, TCP/IP)
+- Understand message broker patterns with RabbitMQ
+- Implement distributed transaction management (SAGA pattern)
+- Build real-time systems with WebSockets
+- Practice microservices architecture
 
 ## 📄 License
 
-Educational project - UCSC 2026
+MIT License - Feel free to use this for your own learning!
+
+---
+
+**Built with ❤️ as a learning journey into middleware architecture and distributed systems.**

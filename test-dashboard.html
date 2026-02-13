@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SwiftLogistics - Mock Services Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .service-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+
+        .service-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .service-title {
+            font-size: 1.5em;
+            color: #333;
+        }
+
+        .service-status {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+
+        .status-checking {
+            background: #ffd93d;
+            color: #856404;
+        }
+
+        .status-online {
+            background: #6bcf7f;
+            color: #155724;
+        }
+
+        .status-offline {
+            background: #ff6b6b;
+            color: #721c24;
+        }
+
+        .protocol-badge {
+            background: #667eea;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            margin-left: 10px;
+        }
+
+        .test-section {
+            margin-top: 20px;
+        }
+
+        .test-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: bold;
+            margin: 5px;
+            transition: transform 0.2s;
+        }
+
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+
+        .test-button:active {
+            transform: translateY(0);
+        }
+
+        .output-box {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .success {
+            color: #6bcf7f;
+        }
+
+        .error {
+            color: #ff6b6b;
+        }
+
+        .info {
+            color: #64b5f6;
+        }
+
+        .input-group {
+            margin: 10px 0;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: bold;
+        }
+
+        .input-group input,
+        .input-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 1em;
+        }
+
+        .input-group input:focus,
+        .input-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .endpoint-info {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-size: 0.9em;
+        }
+
+        .endpoint-info code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading {
+            animation: pulse 1.5s infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 SwiftLogistics Mock Services Dashboard</h1>
+        
+        <div class="services-grid">
+            <!-- Mock ROS Card -->
+            <div class="service-card">
+                <div class="service-header">
+                    <div>
+                        <span class="service-title">Mock ROS</span>
+                        <span class="protocol-badge">REST/JSON</span>
+                    </div>
+                    <span class="service-status status-checking" id="ros-status">Checking...</span>
+                </div>
+                
+                <div class="endpoint-info">
+                    <strong>Endpoint:</strong> <code>http://localhost:4002</code><br>
+                    <strong>Type:</strong> Route Optimization System
+                </div>
+
+                <div class="test-section">
+                    <h3>Test REST API</h3>
+                    
+                    <div class="input-group">
+                        <label>Package ID:</label>
+                        <input type="text" id="ros-package-id" value="PKG-001" placeholder="PKG-001">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Delivery Address:</label>
+                        <input type="text" id="ros-address" value="123 Galle Road, Colombo" placeholder="Enter address">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label>Priority:</label>
+                        <select id="ros-priority">
+                            <option value="normal">Normal</option>
+                            <option value="high">High</option>
+                            <option value="urgent">Urgent</option>
+                        </select>
+                    </div>
+                    
+                    <button class="test-button" onclick="testROSHealth()">🔍 Health Check</button>
+                    <button class="test-button" onclick="testROSOptimize()">📦 Optimize Route</button>
+                    <button class="test-button" onclick="testROSGetAll()">📋 Get All Routes</button>
+                    
+                    <div class="output-box" id="ros-output">Ready to test. Click a button above!</div>
+                </div>
+            </div>
+
+            <!-- Mock CMS Card -->
+            <div class="service-card">
+                <div class="service-header">
+                    <div>
+                        <span class="service-title">Mock CMS</span>
+                        <span class="protocol-badge">SOAP/XML</span>
+                    </div>
+                    <span class="service-status status-checking" id="cms-status">Checking...</span>
+                </div>
+                
+                <div class="endpoint-info">
+                    <strong>Endpoint:</strong> <code>http://localhost:4000</code><br>
+                    <strong>Type:</strong> Client Management System
+                </div>
+
+                <div class="test-section">
+                    <h3>Test SOAP Service</h3>
+                    
+                    <div class="input-group">
+                        <label>Client ID:</label>
+                        <select id="cms-client-id">
+                            <option value="CL-001">CL-001 (ABC Corporation)</option>
+                            <option value="CL-002">CL-002 (XYZ Enterprises)</option>
+                        </select>
+                    </div>
+                    
+                    <button class="test-button" onclick="testCMSHealth()">🔍 Health Check</button>
+                    <button class="test-button" onclick="testCMSWSDL()">📄 View WSDL</button>
+                    <button class="test-button" onclick="showSOAPNote()">ℹ️ SOAP Info</button>
+                    
+                    <div class="output-box" id="cms-output">
+SOAP services require special client libraries.
+Click "Health Check" to verify the service is running.
+Click "View WSDL" to see the service description.
+
+Note: Full SOAP testing requires a SOAP client.
+Use the Node.js test script for complete SOAP testing:
+  node test.js
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check service status on load
+        window.addEventListener('load', () => {
+            checkROSStatus();
+            checkCMSStatus();
+        });
+
+        // ROS Functions
+        async function checkROSStatus() {
+            try {
+                const response = await fetch('http://localhost:4002/health');
+                if (response.ok) {
+                    document.getElementById('ros-status').textContent = 'Online';
+                    document.getElementById('ros-status').className = 'service-status status-online';
+                }
+            } catch (error) {
+                document.getElementById('ros-status').textContent = 'Offline';
+                document.getElementById('ros-status').className = 'service-status status-offline';
+            }
+        }
+
+        async function testROSHealth() {
+            const output = document.getElementById('ros-output');
+            output.innerHTML = '<span class="info loading">⏳ Checking health...</span>';
+            
+            try {
+                const response = await fetch('http://localhost:4002/health');
+                const data = await response.json();
+                
+                output.innerHTML = `<span class="success">✅ Success!</span>\n\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                output.innerHTML = `<span class="error">❌ Error:</span>\n${error.message}\n\n<span class="info">Make sure Mock ROS is running on port 4002!</span>`;
+            }
+        }
+
+        async function testROSOptimize() {
+            const output = document.getElementById('ros-output');
+            output.innerHTML = '<span class="info loading">⏳ Optimizing route...</span>';
+            
+            const packageId = document.getElementById('ros-package-id').value;
+            const address = document.getElementById('ros-address').value;
+            const priority = document.getElementById('ros-priority').value;
+            
+            const requestData = {
+                packageId,
+                address,
+                priority,
+                deliveryWindow: new Date(Date.now() + 3600000).toISOString()
+            };
+            
+            try {
+                const response = await fetch('http://localhost:4002/api/routes/optimize', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestData)
+                });
+                
+                const data = await response.json();
+                
+                output.innerHTML = `<span class="success">✅ Route Optimized!</span>\n\n<span class="info">Request:</span>\n${JSON.stringify(requestData, null, 2)}\n\n<span class="success">Response:</span>\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                output.innerHTML = `<span class="error">❌ Error:</span>\n${error.message}`;
+            }
+        }
+
+        async function testROSGetAll() {
+            const output = document.getElementById('ros-output');
+            output.innerHTML = '<span class="info loading">⏳ Fetching all routes...</span>';
+            
+            try {
+                const response = await fetch('http://localhost:4002/api/routes');
+                const data = await response.json();
+                
+                output.innerHTML = `<span class="success">✅ Success!</span>\n\n<span class="info">Total Routes: ${data.count}</span>\n\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                output.innerHTML = `<span class="error">❌ Error:</span>\n${error.message}`;
+            }
+        }
+
+        // CMS Functions
+        async function checkCMSStatus() {
+            try {
+                const response = await fetch('http://localhost:4000/health');
+                if (response.ok) {
+                    document.getElementById('cms-status').textContent = 'Online';
+                    document.getElementById('cms-status').className = 'service-status status-online';
+                }
+            } catch (error) {
+                document.getElementById('cms-status').textContent = 'Offline';
+                document.getElementById('cms-status').className = 'service-status status-offline';
+            }
+        }
+
+        async function testCMSHealth() {
+            const output = document.getElementById('cms-output');
+            output.innerHTML = '<span class="info loading">⏳ Checking health...</span>';
+            
+            try {
+                const response = await fetch('http://localhost:4000/health');
+                const data = await response.json();
+                
+                output.innerHTML = `<span class="success">✅ Success!</span>\n\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                output.innerHTML = `<span class="error">❌ Error:</span>\n${error.message}\n\n<span class="info">Make sure Mock CMS is running on port 4000!</span>`;
+            }
+        }
+
+        async function testCMSWSDL() {
+            const output = document.getElementById('cms-output');
+            output.innerHTML = '<span class="info loading">⏳ Fetching WSDL...</span>';
+            
+            try {
+                const response = await fetch('http://localhost:4000/cms/wsdl');
+                const wsdl = await response.text();
+                
+                // Show first 2000 characters
+                const preview = wsdl.substring(0, 2000);
+                output.innerHTML = `<span class="success">✅ WSDL Retrieved!</span>\n\n<span class="info">Preview (first 2000 chars):</span>\n${preview}\n\n... (truncated)\n\n<span class="info">Full WSDL URL:</span>\nhttp://localhost:4000/cms/wsdl`;
+            } catch (error) {
+                output.innerHTML = `<span class="error">❌ Error:</span>\n${error.message}`;
+            }
+        }
+
+        function showSOAPNote() {
+            const output = document.getElementById('cms-output');
+            output.innerHTML = `<span class="info">ℹ️ About SOAP Services</span>\n\nSOAP services use XML and require special client libraries.\n\n<span class="success">What you can do in the browser:</span>\n✅ Check if service is running (Health Check)\n✅ View the WSDL description (View WSDL)\n\n<span class="success">What requires a SOAP client:</span>\n📦 SubmitOrder - Create new order\n📋 GetOrderStatus - Get order status\n❌ CancelOrder - Cancel an order\n👤 GetClientInfo - Get client details\n\n<span class="info">To test SOAP operations:</span>\nRun the test script in terminal:\n  cd mock-services/mock-cms\n  node test.js\n\n<span class="info">Why the difference?</span>\nREST uses simple HTTP + JSON (browser-friendly)\nSOAP uses complex XML envelopes (needs libraries)`;
+        }
+    </script>
+</body>
+</html>
