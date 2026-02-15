@@ -114,6 +114,18 @@ cd mock-services/mock-wms
 node test.js
 ```
 
+**Option 3: Middleware Integration Tests (Phase 2)**
+```bash
+# Make sure services are running:
+# 1. RabbitMQ: docker-compose up -d
+# 2. Mock ROS: npm run dev:mock-ros
+# 3. REST Adapter: node adapters/rest-adapter/index.js
+# 4. ROS Worker: node workers/ros-worker/index.js
+
+# Run comprehensive middleware tests
+node test-middleware.js
+```
+
 ## 📚 Documentation
 
 - [Architecture Design](./.agent/SwiftLogistics_Architecture_Design.md)
@@ -141,10 +153,16 @@ This project is built incrementally with a focus on understanding:
   - [x] Test scripts for all services
   - [x] Browser test dashboard
 
-- [ ] **Phase 2: Integration Layer** (In Progress)
-  - [ ] RabbitMQ setup
-  - [ ] Protocol adapters (SOAP, REST, TCP)
-  - [ ] Message queue workers
+- [x] **Phase 2: Integration Layer** (In Progress - 60% Complete!)
+  - [x] RabbitMQ setup with Docker
+  - [x] REST Protocol Adapter
+  - [x] ROS Worker (Route Optimization)
+  - [x] Request/Reply pattern implemented
+  - [x] Message acknowledgment and error handling
+  - [ ] SOAP Protocol Adapter
+  - [ ] TCP Protocol Adapter
+  - [ ] CMS Worker
+  - [ ] WMS Worker
 
 - [ ] **Phase 3: Core Services** (Week 3-4)
   - [ ] API Gateway

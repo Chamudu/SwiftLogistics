@@ -1,0 +1,72 @@
+services:
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: swiftlogistics-rabbitmq
+    hostname: rabbitmq
+    ports:
+      # AMQP protocol port (for applications to connect)
+      - "5672:5672"
+      # Management UI port (for humans to access dashboard)
+      - "15672:15672"
+    environment:
+      # Default credentials (change in production!)
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+      # Enable specific plugins
+      RABBITMQ_PLUGINS: rabbitmq_management
+    volumes:
+      # Persist data so messages survive container restart
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - swiftlogistics
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+  # PostgreSQL Database (for future use in Phase 3)
+  # Uncomment when you need it
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: swiftlogistics-postgres
+  #   environment:
+  #     POSTGRES_USER: swiftlogistics
+  #     POSTGRES_PASSWORD: password123
+  #     POSTGRES_DB: swiftlogistics
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   networks:
+  #     - swiftlogistics
+  #   restart: unless-stopped
+
+  # Redis Cache (for future use in Phase 3)
+  # Uncomment when you need it
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: swiftlogistics-redis
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis_data:/data
+  #   networks:
+  #     - swiftlogistics
+  #   restart: unless-stopped
+
+  # Named volumes for data persistence
+volumes:
+  rabbitmq_data:
+    driver: local
+  # postgres_data:
+  #   driver: local
+  # redis_data:
+  #   driver: local
+
+  # Custom network for service communication
+networks:
+  swiftlogistics:
+    driver: bridge

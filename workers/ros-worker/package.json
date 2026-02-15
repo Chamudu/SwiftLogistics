@@ -1,0 +1,22 @@
+{
+    "name": "ros-worker",
+    "version": "1.0.0",
+    "description": "ROS Worker - Processes route optimization requests from RabbitMQ",
+    "main": "index.js",
+    "type": "module",
+    "scripts": {
+        "dev": "node index.js",
+        "start": "node index.js"
+    },
+    "keywords": [
+        "worker",
+        "rabbitmq",
+        "ros"
+    ],
+    "author": "Chamudu Hansana",
+    "license": "MIT",
+    "dependencies": {
+        "amqplib": "^0.10.3",
+        "node-fetch": "^3.3.0"
+    }
+}
