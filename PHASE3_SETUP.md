@@ -208,10 +208,21 @@ Clients → API Gateway (5000) → 3 Adapters (transparent)
 - [x] `node test-security.js` passes 4/4
 - [x] `node test-gateway.js` passes 5/5 tests
 - [x] **Resilience Active** (Retries implemented)
+- [x] **Order Service (SAGA)** (Port 4004)
+- [x] `node test-saga.js` passes
+
+## 📦 How to Test Order Service (SAGA)
+
+1.  **Start Services**:
+    - `npm run dev` (Gateway)
+    - `node order-service/index.js` (Order Service)
+2.  **Run Test**:
+    - `node test-saga.js`
 
 ---
 
 ## 🚀 What's Next?
+
 
 ### Phase 4: Client Applications
 - Web Portal (React)

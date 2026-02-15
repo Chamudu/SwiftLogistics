@@ -355,9 +355,9 @@ Open `middleware-dashboard.html` in your browser for real-time monitoring and te
 - [x] **Monitoring & Observability**: Real-time dashboard, structured logging (Winston), and metrics.
 - [x] **Security**: API Keys, Rate Limiting.
 - [x] **Resilience**: Retries & Error Handling.
-- [ ] Order Service (SAGA)
-- [ ] Auth Service
-- [ ] WebSocket server
+- [x] **Order Service**: SAGA Pattern Orchestrator (Port 4004).
+- [ ] **Auth Service**: Implementing JWT/Login logic.
+- [ ] **WebSocket Server**: For real-time order tracking updates.
 
 - [ ] **Phase 4: Client Applications**
   - [ ] Web portal (React)

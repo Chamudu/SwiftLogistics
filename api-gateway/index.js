@@ -273,6 +273,30 @@ app.all('/api/routes*', async (req, res) => {
 
 // --- SOAP ROUTES ---
 
+// 🆕 Modern JSON-to-SOAP Adapter Route
+app.post('/soap/submit-order', async (req, res) => {
+    const start = Date.now();
+    try {
+        const url = `${SERVICES.SOAP_ADAPTER}/submit-order`;
+
+        // Resilience Wrapper
+        const response = await resilientFetch('soap', url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(req.body)
+        });
+
+        const data = await response.json();
+
+        trackRequest('soap', Date.now() - start, response.ok, req.path);
+        res.status(response.status).json(data);
+
+    } catch (error) {
+        trackRequest('soap', Date.now() - start, false, req.path);
+        handleError(res, 'SOAP', error);
+    }
+});
+
 app.post('/soap', async (req, res) => {
     const start = Date.now();
     try {
