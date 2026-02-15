@@ -17,11 +17,30 @@ const gateway = axios.create({
     headers: { 'x-api-key': API_KEY }
 });
 
+// In-memory Order Store
+const orders = [];
+
+// GET All Orders
+app.get('/orders', (req, res) => {
+    res.json(orders);
+});
+
 // SAGA: Create Order
 app.post('/orders', async (req, res) => {
     const { items, destination, paymentMethod } = req.body;
     const orderId = `ORD-${Date.now()}`;
     const sagaLog = [];
+
+    // Store order in memory
+    const newOrder = {
+        orderId,
+        items,
+        destination,
+        status: 'PENDING',
+        createdAt: new Date(),
+        logs: sagaLog
+    };
+    orders.unshift(newOrder); // Add to beginning of list
 
     console.log(`\n📦 STARTING SAGA for Order ${orderId}`);
 
@@ -97,6 +116,10 @@ app.post('/orders', async (req, res) => {
             sagaLog
         });
 
+        // Update local status
+        const order = orders.find(o => o.orderId === orderId);
+        if (order) order.status = 'COMPLETED';
+
     } catch (error) {
         console.error(`❌ SAGA FAILED: ${error.message}`);
 
@@ -123,6 +146,10 @@ app.post('/orders', async (req, res) => {
             error: error.message,
             compensationTriggered: true
         });
+
+        // Update local status
+        const order = orders.find(o => o.orderId === orderId);
+        if (order) order.status = 'FAILED';
     }
 });
 
