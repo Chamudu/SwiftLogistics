@@ -1,0 +1,29 @@
+{
+    "name": "api-gateway",
+    "version": "1.0.0",
+    "description": "API Gateway for SwiftLogistics - Unified entry point for all protocols",
+    "main": "index.js",
+    "type": "module",
+    "scripts": {
+        "dev": "node index.js",
+        "start": "node index.js"
+    },
+    "keywords": [
+        "api-gateway",
+        "middleware",
+        "routing",
+        "rest",
+        "soap",
+        "tcp"
+    ],
+    "author": "Chamudu Hansana",
+    "license": "MIT",
+    "dependencies": {
+        "cors": "^2.8.5",
+        "express": "^4.18.2",
+        "express-rate-limit": "^8.2.1",
+        "node-fetch": "^3.3.0",
+        "soap": "^1.0.0",
+        "winston": "^3.19.0"
+    }
+}
