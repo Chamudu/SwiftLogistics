@@ -124,6 +124,68 @@ app.use((req, res, next) => {
     next();
 });
 
+// ==========================================
+// 🛡️ SECURITY MIDDLEWARE (Phase 3.3)
+// ==========================================
+
+import rateLimit from 'express-rate-limit';
+
+// 1. Rate Limiting
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // Limit each IP to 100 requests per windowMs
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    handler: (req, res) => {
+        logger.warn('Rate Limit Exceeded', { ip: req.ip });
+        res.status(429).json({
+            success: false,
+            error: 'Too Many Requests',
+            message: 'You have exceeded the 100 requests in 15 mins limit!'
+        });
+    }
+});
+
+// Apply rate limiting to all requests
+app.use(limiter);
+
+// 2. API Key Authentication
+const VALID_API_KEYS = new Set([
+    'swift-123-secret',  // Client A
+    'logistic-999-key',  // Client B
+    'test-key-001'       // Test Suite
+]);
+
+const authenticate = (req, res, next) => {
+    // Skip auth for System endpoints (Health/Metrics) so dashboard still works
+    if (req.path === '/health' || req.path === '/metrics') {
+        return next();
+    }
+
+    const apiKey = req.get('x-api-key');
+
+    if (!apiKey) {
+        logger.warn('Missing API Key', { ip: req.ip, path: req.path });
+        return res.status(401).json({
+            success: false,
+            error: 'Unauthorized',
+            message: 'Missing x-api-key header'
+        });
+    }
+
+    if (!VALID_API_KEYS.has(apiKey)) {
+        logger.warn('Invalid API Key', { ip: req.ip, apiKey, path: req.path });
+        return res.status(403).json({
+            success: false,
+            error: 'Forbidden',
+            message: 'Invalid API Key'
+        });
+    }
+
+    next();
+};
+
+app.use(authenticate);
 
 // ==========================================
 // 🩺 SYSTEM ENDPOINTS

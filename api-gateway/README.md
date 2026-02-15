@@ -1,13 +1,10 @@
-# SwiftLogistics API Gateway
-
-## Overview
-
-The API Gateway is a unified entry point for all SwiftLogistics protocols (REST, SOAP, TCP). It provides intelligent routing, **structured logging**, **real-time metrics**, and **health monitoring**.
+The API Gateway is a unified entry point for all SwiftLogistics protocols. It provides intelligent routing, **Monitoring**, and **Security**.
 
 ## Features
 
 ✅ **Unified Entry Point** - Single port (5000) for all protocols  
 ✅ **Intelligent Routing** - Automatically routes to appropriate adapter  
+✅ **Security** - API Key Authentication & Rate Limiting  
 ✅ **Structured Logging** - Winston-based JSON logging (`gateway.log`)  
 ✅ **Metrics Console** - Real-time HTML dashboard (`monitoring-dashboard.html`)  
 ✅ **Health Monitoring** - Checks status of all backend services  
@@ -231,12 +228,18 @@ npm run dev
 pm2 start index.js --name api-gateway
 ```
 
+## Security
+
+The gateway is protected by:
+*   **API Key Authentication**: Required `x-api-key` header.
+    *   Valid Keys: `swift-123-secret`, `logistic-999-key`, `test-key-001`
+*   **Rate Limiting**: Max 100 requests per 15 minutes per IP.
+
 ## Next Steps
 
 Phase 3 Enhancements:
 - [x] **Monitoring & Observability** (Completed)
-- [ ] Add authentication (API keys, JWT)
-- [ ] Implement rate limiting
+- [x] **Security (API Keys & Rate Limit)** (Completed)
 - [ ] Add request caching
 - [ ] Circuit breaker pattern
 - [ ] Load balancing support
@@ -244,5 +247,5 @@ Phase 3 Enhancements:
 ---
 
 **Phase**: 3  
-**Part**: 2 - Monitoring & Observability  
+**Part**: 3 - Security  
 **Status**: ✅ Complete

@@ -72,7 +72,10 @@ async function testRESTviaGateway() {
 
         const response = await fetch(`${GATEWAY_URL}/api/routes/optimize`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': 'test-key-001'
+            },
             body: JSON.stringify({
                 packageId: 'PKG-GATEWAY-001',
                 address: '789 Gateway Boulevard, Colombo',
@@ -107,7 +110,10 @@ async function testWarehouseAPI() {
 
         const response = await fetch(`${GATEWAY_URL}/api/warehouse/packages`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': 'test-key-001'
+            },
             body: JSON.stringify({
                 packageId: 'PKG-GATEWAY-WH-001',
                 items: [
