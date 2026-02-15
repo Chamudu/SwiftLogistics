@@ -16,7 +16,11 @@ const app = express();
 const PORT = 5000;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'x-api-key', 'Authorization']
+}));
 app.use(express.json());
 app.use(express.text({ type: 'text/xml' }));
 app.use(express.raw({ type: 'application/xml' }));
@@ -25,15 +29,9 @@ app.use(express.raw({ type: 'application/xml' }));
 const SERVICES = {
     REST_ADAPTER: 'http://localhost:3001',
     SOAP_ADAPTER: 'http://localhost:3002',
-    TCP_ADAPTER: 'http://localhost:3003' // Updated to http for tcp-adapter (it exposes http now?) Wait, tcp-adapter is creating a server? No, adapter is exposing REST/HTTP? Let's check. 
-    // The previous code had 'localhost:3003' and the gateway was doing 'fetch'.
-    // Wait, the TCP adapter listens on a TCP socket?
-    // In Part 1, the Gateway was translating HTTP -> TCP?
-    // Let me check Part 1 implementation of TCP route.
+    TCP_ADAPTER: 'http://localhost:3003',
+    ORDER_SERVICE: 'http://localhost:4004' // Configured for Order Service
 };
-// I'll stick to what was there for SERVICES but check the Logic below.
-
-// ... Metrics Store ...
 
 // ==========================================
 // 📊 METRICS STORE
@@ -46,6 +44,7 @@ let metrics = {
     errorCount: 0,
     protocols: {
         rest: { count: 0, totalLatency: 0 },
+        order: { count: 0, totalLatency: 0 },
         soap: { count: 0, totalLatency: 0 },
         tcp: { count: 0, totalLatency: 0 }
     },
@@ -67,6 +66,9 @@ function trackRequest(protocol, duration, success, path) {
     if (metrics.protocols[protocol]) {
         metrics.protocols[protocol].count++;
         metrics.protocols[protocol].totalLatency += duration;
+    } else {
+        // Fallback for new protocols
+        metrics.protocols[protocol] = { count: 1, totalLatency: duration };
     }
 }
 
@@ -175,7 +177,8 @@ app.get('/health', async (req, res) => {
         services: {
             restAdapter: 'unknown',
             soapAdapter: 'unknown',
-            tcpAdapter: 'unknown'
+            tcpAdapter: 'unknown',
+            orderService: 'unknown'
         }
     };
 
@@ -190,6 +193,20 @@ app.get('/health', async (req, res) => {
         const soapResponse = await fetch(`${SERVICES.SOAP_ADAPTER}/soap?wsdl`, { timeout: 1000 });
         health.services.soapAdapter = soapResponse.ok ? 'healthy' : 'degraded';
     } catch (e) { health.services.soapAdapter = 'down'; }
+
+    // Check Order Service
+    try {
+        // Simple ping if Order Service doesn't have explicit health check yet
+        // A connection refused would throw, a 404 is fine (means server is up)
+        await fetch(`${SERVICES.ORDER_SERVICE}/orders`, {
+            method: 'POST', body: '{}', headers: { 'Content-Type': 'application/json' }, timeout: 1000
+        });
+        health.services.orderService = 'healthy';
+    } catch (e) {
+        // 404/400 is fine, connection refused is not
+        if (e.code === 'ECONNREFUSED') health.services.orderService = 'down';
+        else health.services.orderService = 'healthy';
+    }
 
     health.services.tcpAdapter = 'assumed-healthy'; // TCP check requires net socket
 
@@ -207,7 +224,7 @@ app.get('/metrics', (req, res) => {
     const uptime = Math.floor((Date.now() - metrics.startTime) / 1000);
 
     const calculateAvg = (p) =>
-        p.count > 0 ? Math.round(p.totalLatency / p.count) : 0;
+        p && p.count > 0 ? Math.round(p.totalLatency / p.count) : 0;
 
     const snapshot = {
         uptime,
@@ -220,12 +237,14 @@ app.get('/metrics', (req, res) => {
         latency: {
             rest: calculateAvg(metrics.protocols.rest),
             soap: calculateAvg(metrics.protocols.soap),
-            tcp: calculateAvg(metrics.protocols.tcp)
+            tcp: calculateAvg(metrics.protocols.tcp),
+            order: calculateAvg(metrics.protocols.order)
         },
         counts: {
             rest: metrics.protocols.rest.count,
             soap: metrics.protocols.soap.count,
-            tcp: metrics.protocols.tcp.count
+            tcp: metrics.protocols.tcp.count,
+            order: metrics.protocols.order ? metrics.protocols.order.count : 0
         },
         logs: metrics.recentLogs
     };
@@ -398,6 +417,35 @@ app.all('/api/warehouse*', async (req, res) => {
     }
 });
 
+// --- ORDER SERVICE ROUTES ---
+
+app.post('/orders', async (req, res) => {
+    const start = Date.now();
+    try {
+        const url = `${SERVICES.ORDER_SERVICE}/orders`;
+
+        // Resilience Wrapper
+        const response = await resilientFetch('order', url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                // Forward API Key to Order Service (it expects one too!)
+                'x-api-key': req.get('x-api-key')
+            },
+            body: JSON.stringify(req.body)
+        });
+
+        const data = await response.json();
+
+        trackRequest('order', Date.now() - start, response.ok, req.path);
+        res.status(response.status).json(data);
+
+    } catch (error) {
+        trackRequest('order', Date.now() - start, false, req.path);
+        handleError(res, 'ORDER', error);
+    }
+});
+
 // --- 404 HANDLER ---
 app.use('*', (req, res) => {
     logger.warn('404 Not Found', { path: req.originalUrl, method: req.method });
@@ -406,16 +454,16 @@ app.use('*', (req, res) => {
         error: 'Endpoint not found',
         message: `The requested endpoint ${req.originalUrl} does not exist`,
         availableEndpoints: {
+            orders: ['POST /orders'], // Added /orders to available endpoints
             rest: ['POST /api/routes/optimize', 'GET /api/routes/:routeId'],
             soap: ['POST /soap', 'GET /soap/wsdl'],
-            warehouse: ['POSt /api/warehouse/packages', 'GET /api/warehouse/inventory'],
+            warehouse: ['POST /api/warehouse/packages', 'GET /api/warehouse/inventory'], // Fixed Typo POSt -> POST
             system: ['GET /health', 'GET /metrics']
         }
     });
 });
 
 // --- BOOTSTRAP ---
-
 
 app.listen(PORT, () => {
     logger.info('API Gateway started', { port: PORT, env: 'development' });
