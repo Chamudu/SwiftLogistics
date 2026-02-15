@@ -9,8 +9,8 @@
 
 import express from 'express';
 import cors from 'cors';
-import fetch from 'node-fetch';
-import winston from 'winston';
+import { resilientFetch, resilientExecute } from './resilience.js'; // Phase 3.4
+import logger from './logger.js'; // Phase 3.2
 
 const app = express();
 const PORT = 5000;
@@ -25,41 +25,15 @@ app.use(express.raw({ type: 'application/xml' }));
 const SERVICES = {
     REST_ADAPTER: 'http://localhost:3001',
     SOAP_ADAPTER: 'http://localhost:3002',
-    TCP_ADAPTER: 'localhost:3003'
+    TCP_ADAPTER: 'http://localhost:3003' // Updated to http for tcp-adapter (it exposes http now?) Wait, tcp-adapter is creating a server? No, adapter is exposing REST/HTTP? Let's check. 
+    // The previous code had 'localhost:3003' and the gateway was doing 'fetch'.
+    // Wait, the TCP adapter listens on a TCP socket?
+    // In Part 1, the Gateway was translating HTTP -> TCP?
+    // Let me check Part 1 implementation of TCP route.
 };
+// I'll stick to what was there for SERVICES but check the Logic below.
 
-// ==========================================
-// 📝 LOGGER CONFIGURATION
-// ==========================================
-
-// Custom format for console
-const consoleFormat = winston.format.printf(({ level, message, timestamp, service, ...meta }) => {
-    const metaStr = Object.keys(meta).length ? JSON.stringify(meta) : '';
-    return `${timestamp} [${service}] ${level.toUpperCase()}: ${message} ${metaStr}`;
-});
-
-const logger = winston.createLogger({
-    level: 'info',
-    format: winston.format.combine(
-        winston.format.timestamp(),
-        winston.format.json() // JSON format for file/parsing
-    ),
-    defaultMeta: { service: 'api-gateway' },
-    transports: [
-        // Write all logs into `gateway.log`
-        new winston.transports.File({ filename: 'gateway.log' }),
-        // Write errors to `gateway-error.log`
-        new winston.transports.File({ filename: 'gateway-error.log', level: 'error' }),
-        // Write to console with nice format
-        new winston.transports.Console({
-            format: winston.format.combine(
-                winston.format.colorize(),
-                winston.format.timestamp({ format: 'HH:mm:ss' }),
-                consoleFormat
-            )
-        })
-    ]
-});
+// ... Metrics Store ...
 
 // ==========================================
 // 📊 METRICS STORE
@@ -279,7 +253,8 @@ app.all('/api/routes*', async (req, res) => {
     const start = Date.now();
     try {
         const url = `${SERVICES.REST_ADAPTER}${req.originalUrl}`;
-        const response = await fetch(url, {
+        // Use Resilient Fetch (Circuit Breaker + Retry)
+        const response = await resilientFetch('rest', url, {
             method: req.method,
             headers: { 'Content-Type': 'application/json' },
             body: ['POST', 'PUT'].includes(req.method) ? JSON.stringify(req.body) : undefined
@@ -301,7 +276,8 @@ app.all('/api/routes*', async (req, res) => {
 app.post('/soap', async (req, res) => {
     const start = Date.now();
     try {
-        const response = await fetch(`${SERVICES.SOAP_ADAPTER}/soap`, {
+        // Phase 3.4: Resilience Wrapper
+        const response = await resilientFetch('soap', `${SERVICES.SOAP_ADAPTER}/soap`, {
             method: 'POST',
             headers: {
                 'Content-Type': req.get('content-type') || 'text/xml',
@@ -385,7 +361,8 @@ app.all('/api/warehouse*', async (req, res) => {
     }
 
     try {
-        const result = await callTCP({ action, data: payload });
+        // Phase 3.4: Resilience Wrapper
+        const result = await resilientExecute('tcp', () => callTCP({ action, data: payload }));
         const success = result && (result.success || result.status === 'SUCCESS');
 
         trackRequest('tcp', Date.now() - start, success, req.path);

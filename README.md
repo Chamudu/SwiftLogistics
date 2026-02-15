@@ -354,7 +354,7 @@ Open `middleware-dashboard.html` in your browser for real-time monitoring and te
 - [x] **API Gateway**: Unified entry point (Port 5000) for all protocols.
 - [x] **Monitoring & Observability**: Real-time dashboard, structured logging (Winston), and metrics.
 - [x] **Security**: API Keys, Rate Limiting.
-- [ ] **Resilience**: Circuit Breaker, Retry Logic.
+- [x] **Resilience**: Retries & Error Handling.
 - [ ] Order Service (SAGA)
 - [ ] Auth Service
 - [ ] WebSocket server

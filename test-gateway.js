@@ -149,7 +149,9 @@ async function test404Handling() {
     try {
         log('\n📤 Requesting non-existent endpoint...', 'blue');
 
-        const response = await fetch(`${GATEWAY_URL}/api/nonexistent`);
+        const response = await fetch(`${GATEWAY_URL}/api/nonexistent`, {
+            headers: { 'x-api-key': 'test-key-001' }
+        });
         const data = await response.json();
 
         if (response.status === 404 && data.availableEndpoints) {
