@@ -1,0 +1,23 @@
+{
+    "name": "tcp-adapter",
+    "version": "1.0.0",
+    "description": "TCP Protocol Adapter for SwiftLogistics - Integrates TCP/IP sockets with RabbitMQ",
+    "main": "index.js",
+    "type": "module",
+    "scripts": {
+        "dev": "node index.js",
+        "start": "node index.js"
+    },
+    "keywords": [
+        "tcp",
+        "adapter",
+        "rabbitmq",
+        "middleware",
+        "socket"
+    ],
+    "author": "Chamudu Hansana",
+    "license": "MIT",
+    "dependencies": {
+        "amqplib": "^0.10.3"
+    }
+}

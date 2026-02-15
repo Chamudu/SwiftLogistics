@@ -1,0 +1,22 @@
+{
+    "name": "wms-worker",
+    "version": "1.0.0",
+    "description": "WMS Worker - Processes warehouse management requests from RabbitMQ",
+    "main": "index.js",
+    "type": "module",
+    "scripts": {
+        "dev": "node index.js",
+        "start": "node index.js"
+    },
+    "keywords": [
+        "worker",
+        "rabbitmq",
+        "wms",
+        "tcp"
+    ],
+    "author": "Chamudu Hansana",
+    "license": "MIT",
+    "dependencies": {
+        "amqplib": "^0.10.3"
+    }
+}
