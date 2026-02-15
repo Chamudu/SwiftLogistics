@@ -35,7 +35,9 @@ export async function resilientFetch(name, url, options) {
     return resilientExecute(name, async () => {
         const response = await fetch(url, options);
         if (!response.ok && response.status >= 500) {
-            throw new Error(`Server Error: ${response.status}`);
+            const errorText = await response.text();
+            logger.error(`${name} Error Response:`, { status: response.status, body: errorText });
+            throw new Error(`Server Error: ${response.status} - ${errorText}`);
         }
         return response;
     });

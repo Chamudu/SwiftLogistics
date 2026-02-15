@@ -27,29 +27,45 @@ const PORT = 3002;
 const RABBITMQ_URL = 'amqp://admin:admin123@localhost:5672';
 
 app.use(cors());
+app.use(express.json()); // Enable JSON body parsing
 
 // RabbitMQ connection
 let connection = null;
 let channel = null;
 
 /**
- * LEARNING: What is SOAP Adapter doing?
- * 
- * SOAP uses XML, RabbitMQ uses JSON (typically)
- * 
- * Flow:
- * SOAP Client → XML Request
- *     ↓
- * SOAP Adapter → Parse XML to JSON
- *     ↓
- * RabbitMQ → Store as JSON message
- *     ↓
- * CMS Worker → Process
- *     ↓
- * Mock CMS → SOAP service
- *     ↓
- * Response flows back (JSON → XML)
+ * Shared Logic: Publish Order to RabbitMQ
+ * Used by both SOAP (legacy) and JSON (modern) endpoints
  */
+async function publishOrderToRMS(data) {
+    const message = {
+        action: 'SUBMIT_ORDER',
+        data: {
+            clientId: data.clientId,
+            packageId: data.packageId,
+            pickupAddress: data.pickupAddress,
+            deliveryAddress: data.deliveryAddress,
+            packageWeight: parseFloat(data.packageWeight),
+            packageDimensions: data.packageDimensions,
+            deliveryType: data.deliveryType
+        },
+        timestamp: new Date().toISOString()
+    };
+
+    const response = await publishAndWait(
+        'cms_exchange',
+        'order.submit',
+        message
+    );
+
+    return {
+        success: true,
+        orderId: response.OrderId || response.orderId || '',
+        message: response.Message || response.message || '',
+        estimatedCost: response.EstimatedCost || response.estimatedCost || 0,
+        estimatedDeliveryDate: response.EstimatedDeliveryDate || response.estimatedDeliveryDate || ''
+    };
+}
 
 /**
  * Initialize RabbitMQ
@@ -136,6 +152,28 @@ function generateId() {
 }
 
 /**
+ * 🆕 JSON Endpoint (Modern Application)
+ * Allows Order Service to send JSON directly
+ */
+app.post('/submit-order', async (req, res) => {
+    try {
+        console.log('═══════════════════════════════════════════');
+        console.log('🚀 REST-to-SOAP Request: /submit-order');
+        console.log('═══════════════════════════════════════════');
+
+        const result = await publishOrderToRMS(req.body);
+
+        console.log('✅ Order Processed via JSON Adapter');
+        console.log('═══════════════════════════════════════════\n');
+
+        res.json(result);
+    } catch (error) {
+        console.error('❌ Error:', error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+});
+
+/**
  * SOAP Service Implementation
  * 
  * LEARNING: SOAP services are defined by operations
@@ -154,37 +192,9 @@ const soapService = {
                 console.log('Input:', args);
 
                 try {
-                    const message = {
-                        action: 'SUBMIT_ORDER',
-                        data: {
-                            clientId: args.clientId,
-                            packageId: args.packageId,
-                            pickupAddress: args.pickupAddress,
-                            deliveryAddress: args.deliveryAddress,
-                            packageWeight: parseFloat(args.packageWeight),
-                            packageDimensions: args.packageDimensions,
-                            deliveryType: args.deliveryType
-                        },
-                        timestamp: new Date().toISOString()
-                    };
-
-                    const response = await publishAndWait(
-                        'cms_exchange',
-                        'order.submit',
-                        message
-                    );
-
+                    const result = await publishOrderToRMS(args);
                     console.log('═══════════════════════════════════════════\n');
-
-                    // Transform PascalCase response from Mock CMS to camelCase
-                    // Mock CMS returns: OrderId, Status, CreatedAt, Message
-                    return {
-                        success: true,
-                        orderId: response.OrderId || response.orderId || '',
-                        message: response.Message || response.message || '',
-                        estimatedCost: response.EstimatedCost || response.estimatedCost || 0,
-                        estimatedDeliveryDate: response.EstimatedDeliveryDate || response.estimatedDeliveryDate || ''
-                    };
+                    return result;
 
                 } catch (error) {
                     console.error('❌ Error:', error.message);
