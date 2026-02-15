@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SwiftLogistics Middleware Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+            animation: fadeInDown 0.8s ease;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+
+        .status-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            animation: fadeInUp 0.8s ease;
+        }
+
+        .status-card h3 {
+            font-size: 0.9em;
+            color: #666;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.online {
+            background: #10b981;
+            box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
+        }
+
+        .status-dot.offline {
+            background: #ef4444;
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.5);
+        }
+
+        .status-dot.checking {
+            background: #f59e0b;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+        }
+
+        .protocol-section {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            animation: fadeInUp 1s ease;
+        }
+
+        .protocol-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e5e7eb;
+        }
+
+        .protocol-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+        }
+
+        .rest-icon { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .soap-icon { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .tcp-icon { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+
+        .protocol-title h2 {
+            font-size: 1.8em;
+            color: #1f2937;
+            margin-bottom: 5px;
+        }
+
+        .protocol-title p {
+            color: #6b7280;
+            font-size: 0.9em;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #374151;
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .btn-info {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+
+        .response-box {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f9fafb;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+        }
+
+        .response-box.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        .response-box pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+
+        .info-box {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .info-box h4 {
+            color: #1e40af;
+            margin-bottom: 10px;
+        }
+
+        .info-box ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .info-box li {
+            padding: 5px 0;
+            color: #1e3a8a;
+        }
+
+        .info-box code {
+            background: #dbeafe;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                max-height: 0;
+            }
+            to {
+                opacity: 1;
+                max-height: 400px;
+            }
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 SwiftLogistics Middleware Dashboard</h1>
+            <p>Test all three protocol integrations in real-time</p>
+        </div>
+
+        <!-- Status Grid -->
+        <div class="status-grid">
+            <div class="status-card">
+                <h3>REST Adapter</h3>
+                <div class="status-indicator">
+                    <div class="status-dot checking" id="rest-status"></div>
+                    <span id="rest-text">Checking...</span>
+                </div>
+            </div>
+            <div class="status-card">
+                <h3>SOAP Adapter</h3>
+                <div class="status-indicator">
+                    <div class="status-dot checking" id="soap-status"></div>
+                    <span id="soap-text">Checking...</span>
+                </div>
+            </div>
+            <div class="status-card">
+                <h3>TCP Adapter</h3>
+                <div class="status-indicator">
+                    <div class="status-dot checking" id="tcp-status"></div>
+                    <span id="tcp-text">Browser cannot test TCP directly</span>
+                </div>
+            </div>
+            <div class="status-card">
+                <h3>RabbitMQ</h3>
+                <div class="status-indicator">
+                    <div class="status-dot checking" id="rabbitmq-status"></div>
+                    <span id="rabbitmq-text">Checking...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- REST Protocol Section -->
+        <div class="protocol-section">
+            <div class="protocol-header">
+                <div class="protocol-icon rest-icon">REST</div>
+                <div class="protocol-title">
+                    <h2>REST Protocol Adapter</h2>
+                    <p>HTTP/JSON - Port 3001</p>
+                </div>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Package ID</label>
+                    <input type="text" id="rest-packageId" value="PKG-DASH-001" placeholder="PKG-001">
+                </div>
+                <div class="form-group">
+                    <label>Address</label>
+                    <input type="text" id="rest-address" value="123 Dashboard Street, Colombo" placeholder="123 Main St">
+                </div>
+                <div class="form-group">
+                    <label>Priority</label>
+                    <select id="rest-priority">
+                        <option value="high">High</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="low">Low</option>
+                    </select>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="testREST()">🚗 Optimize Route</button>
+            
+            <div id="rest-response" class="response-box"></div>
+        </div>
+
+        <!-- SOAP Protocol Section -->
+        <div class="protocol-section">
+            <div class="protocol-header">
+                <div class="protocol-icon soap-icon">SOAP</div>
+                <div class="protocol-title">
+                    <h2>SOAP Protocol Adapter</h2>
+                    <p>XML/WSDL - Port 3002</p>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <h4>📋 SOAP Testing Information</h4>
+                <p>SOAP testing from the browser requires specialized tools. Use these options:</p>
+                <ul>
+                    <li>✅ <strong>WSDL URL:</strong> <code>http://localhost:3002/soap?wsdl</code></li>
+                    <li>✅ <strong>Test Script:</strong> Run <code>node test-all-protocols.js</code></li>
+                    <li>✅ <strong>SOAP Tools:</strong> Use Postman or SoapUI for manual testing</li>
+                </ul>
+            </div>
+
+            <button class="btn btn-info" onclick="window.open('http://localhost:3002/soap?wsdl', '_blank')">
+                📄 View WSDL
+            </button>
+        </div>
+
+        <!-- TCP Protocol Section -->
+        <div class="protocol-section">
+            <div class="protocol-header">
+                <div class="protocol-icon tcp-icon">TCP</div>
+                <div class="protocol-title">
+                    <h2>TCP Protocol Adapter</h2>
+                    <p>Binary Socket - Port 3003</p>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <h4>🔌 TCP Testing Information</h4>
+                <p>TCP sockets cannot be tested directly from the browser due to security restrictions.</p>
+                <ul>
+                    <li>✅ <strong>Test Script:</strong> Run <code>node test-all-protocols.js</code></li>
+                    <li>✅ <strong>Protocol:</strong> Length-prefixed JSON over TCP</li>
+                    <li>✅ <strong>Port:</strong> 3003</li>
+                    <li>✅ <strong>Operations:</strong> CREATE_PACKAGE, GET_PACKAGE_STATUS, UPDATE_PACKAGE_STATUS, GET_INVENTORY</li>
+                </ul>
+            </div>
+
+            <button class="btn btn-success" onclick="showTCPExample()">
+                📖 View Protocol Example
+            </button>
+
+            <div id="tcp-example" class="response-box"></div>
+        </div>
+    </div>
+
+    <script>
+        // Check service status
+        async function checkServices() {
+            // Check REST Adapter
+            try {
+                const response = await fetch('http://localhost:3001/api/routes');
+                updateStatus('rest', response.ok);
+            } catch (error) {
+                updateStatus('rest', false);
+            }
+
+            // Check SOAP Adapter (try to fetch WSDL)
+            try {
+                const response = await fetch('http://localhost:3002/soap?wsdl');
+                updateStatus('soap', response.ok);
+            } catch (error) {
+                updateStatus('soap', false);
+            }
+
+            // TCP cannot be checked from browser
+            document.getElementById('tcp-status').className = 'status-dot offline';
+            document.getElementById('tcp-text').textContent = 'Use node test-all-protocols.js';
+
+            // Check RabbitMQ Management
+            try {
+                const response = await fetch('http://localhost:15672');
+                updateStatus('rabbitmq', response.ok);
+            } catch (error) {
+                updateStatus('rabbitmq', false);
+            }
+        }
+
+        function updateStatus(service, isOnline) {
+            const statusDot = document.getElementById(`${service}-status`);
+            const statusText = document.getElementById(`${service}-text`);
+            
+            if (isOnline) {
+                statusDot.className = 'status-dot online';
+                statusText.textContent = 'Online';
+            } else {
+                statusDot.className = 'status-dot offline';
+                statusText.textContent = 'Offline';
+            }
+        }
+
+        // Test REST Protocol
+        async function testREST() {
+            const responseBox = document.getElementById('rest-response');
+            responseBox.className = 'response-box show';
+            responseBox.innerHTML = '<div class="loading"></div> Sending request...';
+
+            try {
+                const response = await fetch('http://localhost:3001/api/routes/optimize', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        packageId: document.getElementById('rest-packageId').value,
+                        address: document.getElementById('rest-address').value,
+                        priority: document.getElementById('rest-priority').value
+                    })
+                });
+
+                const data = await response.json();
+                
+                responseBox.innerHTML = `
+                    <strong>✅ SUCCESS!</strong><br><br>
+                    <strong>Flow:</strong> Browser → REST Adapter → RabbitMQ → ROS Worker → Mock ROS<br><br>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+            } catch (error) {
+                responseBox.innerHTML = `
+                    <strong>❌ ERROR</strong><br><br>
+                    ${error.message}<br><br>
+                    Make sure REST Adapter is running on port 3001
+                `;
+            }
+        }
+
+        // Show TCP Example
+        function showTCPExample() {
+            const exampleBox = document.getElementById('tcp-example');
+            exampleBox.className = 'response-box show';
+            exampleBox.innerHTML = `
+                <strong>📖 TCP Protocol Example</strong><br><br>
+                <strong>Message Format:</strong> [4 bytes: length][JSON message]<br><br>
+                <strong>Example Request:</strong><br>
+                <pre>{
+  "action": "CREATE_PACKAGE",
+  "data": {
+    "packageId": "PKG-001",
+    "items": [
+      { "sku": "ITEM-001", "quantity": 2 }
+    ],
+    "destination": "Warehouse B"
+  }
+}</pre>
+                <br>
+                <strong>Example Response:</strong><br>
+                <pre>{
+  "status": "SUCCESS",
+  "packageId": "PKG-5001",
+  "estimatedPickTime": "2024-02-15T10:30:00Z",
+  "zone": "A1"
+}</pre>
+                <br>
+                <strong>To Test:</strong> Run <code>node test-all-protocols.js</code> in your terminal
+            `;
+        }
+
+        // Check services on load
+        window.addEventListener('load', checkServices);
+
+        // Refresh status every 10 seconds
+        setInterval(checkServices, 10000);
+    </script>
+</body>
+</html>
