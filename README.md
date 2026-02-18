@@ -85,12 +85,22 @@ cd c:/Users/Chamudu Hansana/Desktop/Projects/SwiftLogistics
    docker-compose up -d
    ```
 
-2. **Start All Services**:
-   Double-click `start-dev.bat` or run:
-   ```bash
-   .\start-dev.bat
-   ```
-   *This will open separate terminal windows for all 13 services.*
+### ⚡ Super Quick Start
+
+**Windows:**
+Double-click `start-dev.bat` or run:
+```bash
+.\start-dev.bat
+```
+
+**Mac / Linux:**
+Run the bash script:
+```bash
+chmod +x start-dev.sh
+./start-dev.sh
+```
+
+*These scripts will open separate terminal windows for all 13 services.*
 
 ### Manual Startup
 
