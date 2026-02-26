@@ -54,6 +54,6 @@ start "Frontend" cmd /k "cd client-app && npm run dev"
 
 echo.
 echo ✅ All services started!
-echo 📊 Dashboard: http://localhost:5173
+echo 📊 Dashboard: http:// localhost:5173
 echo.
 pause
