@@ -9,4 +9,139 @@
     @apply bg-background text-slate-800 antialiased;
     font-family: 'Inter', sans-serif;
   }
+
+  /* ======================================== */
+  /* DARK MODE OVERRIDES                      */
+  /* ======================================== */
+
+  /* Body */
+  html.dark body {
+    @apply bg-slate-950 text-slate-200;
+  }
+
+  /* White surfaces → dark slate */
+  html.dark .bg-white {
+    background-color: #1e293b !important; /* slate-800 */
+  }
+
+  /* Slate-50 backgrounds → darker */
+  html.dark .bg-slate-50 {
+    background-color: #0f172a !important; /* slate-950 */
+  }
+
+  html.dark .bg-slate-100 {
+    background-color: #1e293b !important;
+  }
+
+  /* Background utility */
+  html.dark .bg-background {
+    background-color: #020617 !important; /* slate-950 */
+  }
+
+  /* Text colors */
+  html.dark .text-slate-800 {
+    color: #e2e8f0 !important; /* slate-200 */
+  }
+
+  html.dark .text-slate-700 {
+    color: #cbd5e1 !important; /* slate-300 */
+  }
+
+  html.dark .text-slate-600 {
+    color: #94a3b8 !important; /* slate-400 */
+  }
+
+  html.dark .text-slate-500 {
+    color: #64748b !important;
+  }
+
+  html.dark .text-slate-400 {
+    color: #475569 !important;
+  }
+
+  /* Borders */
+  html.dark .border-slate-100 {
+    border-color: #334155 !important; /* slate-700 */
+  }
+
+  html.dark .border-slate-200 {
+    border-color: #334155 !important;
+  }
+
+  html.dark .border-slate-50 {
+    border-color: #1e293b !important;
+  }
+
+  /* Dividers */
+  html.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+    border-color: #334155 !important;
+  }
+
+  html.dark .divide-slate-50 > :not([hidden]) ~ :not([hidden]) {
+    border-color: #1e293b !important;
+  }
+
+  /* Hover states */
+  html.dark .hover\:bg-slate-50:hover {
+    background-color: #334155 !important;
+  }
+
+  html.dark .hover\:bg-slate-100:hover {
+    background-color: #334155 !important;
+  }
+
+  /* Input fields */
+  html.dark input,
+  html.dark select,
+  html.dark textarea {
+    background-color: #0f172a;
+    color: #e2e8f0;
+    border-color: #334155;
+  }
+
+  html.dark input::placeholder {
+    color: #475569;
+  }
+
+  /* Shadows */
+  html.dark .shadow-sm {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+  }
+
+  /* Tables */
+  html.dark thead {
+    background-color: #0f172a !important;
+  }
+
+  html.dark tr:hover {
+    background-color: #334155 !important;
+  }
+
+  /* Cards with colored backgrounds keep their colors */
+  /* Status badges, icon backgrounds, etc. stay the same */
+
+  /* Dashed borders */
+  html.dark .border-dashed {
+    border-color: #334155 !important;
+  }
+
+  /* Code blocks */
+  html.dark code {
+    background-color: #0f172a !important;
+    color: #94a3b8 !important;
+  }
+
+  html.dark pre {
+    background-color: #0f172a !important;
+    border-color: #334155 !important;
+  }
+
+  /* Scrollbar dark mode */
+  html.dark ::-webkit-scrollbar-thumb {
+    background: #475569;
+  }
+
+  html.dark ::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+  }
 }

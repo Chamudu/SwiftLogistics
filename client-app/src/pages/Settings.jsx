@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Moon, Sun, Bell, Shield, Database, Server, Globe, Key, Info, ExternalLink, Wifi } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 
 const API_GATEWAY_URL = 'http://localhost:5000';
 
 const Settings = () => {
     const { user } = useAuth();
-    const [darkMode, setDarkMode] = useState(false);
+    const { darkMode, toggleDarkMode } = useTheme();
     const [notifications, setNotifications] = useState(true);
     const [autoRefresh, setAutoRefresh] = useState(true);
 
@@ -31,8 +32,8 @@ const Settings = () => {
                 <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Profile</h2>
                 <div className="flex items-center">
                     <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg ${user?.role === 'admin' ? 'bg-gradient-to-br from-blue-500 to-indigo-600 shadow-blue-200' :
-                            user?.role === 'customer' ? 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-200' :
-                                'bg-gradient-to-br from-amber-500 to-orange-600 shadow-amber-200'
+                        user?.role === 'customer' ? 'bg-gradient-to-br from-emerald-500 to-teal-600 shadow-emerald-200' :
+                            'bg-gradient-to-br from-amber-500 to-orange-600 shadow-amber-200'
                         }`}>
                         {user?.avatar || '?'}
                     </div>
@@ -40,8 +41,8 @@ const Settings = () => {
                         <h3 className="font-bold text-slate-800 text-lg">{user?.name || 'Guest'}</h3>
                         <p className="text-sm text-slate-500">{user?.email || 'No email'}</p>
                         <span className={`inline-flex text-xs font-medium px-2 py-0.5 rounded-full mt-1 ${user?.role === 'admin' ? 'bg-blue-100 text-blue-700' :
-                                user?.role === 'customer' ? 'bg-emerald-100 text-emerald-700' :
-                                    'bg-amber-100 text-amber-700'
+                            user?.role === 'customer' ? 'bg-emerald-100 text-emerald-700' :
+                                'bg-amber-100 text-amber-700'
                             }`}>
                             {user?.title || user?.role || 'Guest'}
                         </span>
@@ -66,7 +67,7 @@ const Settings = () => {
                             <p className="text-xs text-slate-500 mt-0.5">Toggle between light and dark themes</p>
                         </div>
                     </div>
-                    <Toggle enabled={darkMode} onToggle={() => setDarkMode(!darkMode)} />
+                    <Toggle enabled={darkMode} onToggle={toggleDarkMode} />
                 </div>
 
                 {/* Notifications */}
