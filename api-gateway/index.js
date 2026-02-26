@@ -419,6 +419,25 @@ app.all('/api/warehouse*', async (req, res) => {
 
 // --- ORDER SERVICE ROUTES ---
 
+app.get('/orders', async (req, res) => {
+    const start = Date.now();
+    try {
+        const url = `${SERVICES.ORDER_SERVICE}/orders`;
+        const response = await resilientFetch('order', url, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        const data = await response.json();
+        trackRequest('order', Date.now() - start, response.ok, req.path);
+        res.status(response.status).json(data);
+
+    } catch (error) {
+        trackRequest('order', Date.now() - start, false, req.path);
+        handleError(res, 'ORDER', error);
+    }
+});
+
 app.post('/orders', async (req, res) => {
     const start = Date.now();
     try {
@@ -454,7 +473,7 @@ app.use('*', (req, res) => {
         error: 'Endpoint not found',
         message: `The requested endpoint ${req.originalUrl} does not exist`,
         availableEndpoints: {
-            orders: ['POST /orders'], // Added /orders to available endpoints
+            orders: ['GET /orders', 'POST /orders'],
             rest: ['POST /api/routes/optimize', 'GET /api/routes/:routeId'],
             soap: ['POST /soap', 'GET /soap/wsdl'],
             warehouse: ['POST /api/warehouse/packages', 'GET /api/warehouse/inventory'], // Fixed Typo POSt -> POST

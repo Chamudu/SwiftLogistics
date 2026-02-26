@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Package, MapPin, Calendar, ExternalLink, RefreshCw } from 'lucide-react';
+import { Package, MapPin, Calendar, RefreshCw, CheckCircle, AlertCircle, Clock, Search, Filter, Eye, ChevronDown, Truck, X } from 'lucide-react';
 
 const API_GATEWAY_URL = 'http://localhost:5000';
 const API_KEY = 'swift-123-secret';
@@ -8,6 +8,9 @@ const API_KEY = 'swift-123-secret';
 const Orders = () => {
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('ALL');
+    const [selectedOrder, setSelectedOrder] = useState(null);
 
     const fetchOrders = async () => {
         setLoading(true);
@@ -15,7 +18,7 @@ const Orders = () => {
             const response = await axios.get(`${API_GATEWAY_URL}/orders`, {
                 headers: { 'x-api-key': API_KEY }
             });
-            setOrders(response.data);
+            setOrders(Array.isArray(response.data) ? response.data : []);
         } catch (error) {
             console.error('Failed to fetch orders:', error);
         } finally {
@@ -27,83 +30,231 @@ const Orders = () => {
         fetchOrders();
     }, []);
 
-    const getStatusColor = (status) => {
+    const getStatusConfig = (status) => {
         switch (status) {
-            case 'COMPLETED': return 'bg-green-100 text-green-700 border-green-200';
-            case 'FAILED': return 'bg-red-100 text-red-700 border-red-200';
-            default: return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+            case 'COMPLETED':
+                return { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', icon: CheckCircle, iconColor: 'text-emerald-500', dot: 'bg-emerald-500' };
+            case 'FAILED':
+                return { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200', icon: AlertCircle, iconColor: 'text-red-500', dot: 'bg-red-500' };
+            default:
+                return { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-200', icon: Clock, iconColor: 'text-amber-500', dot: 'bg-amber-500' };
         }
+    };
+
+    const filteredOrders = orders.filter(order => {
+        const matchesSearch = order.orderId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            order.destination?.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesStatus = statusFilter === 'ALL' || order.status === statusFilter;
+        return matchesSearch && matchesStatus;
+    });
+
+    const statusCounts = {
+        ALL: orders.length,
+        COMPLETED: orders.filter(o => o.status === 'COMPLETED').length,
+        PENDING: orders.filter(o => o.status === 'PENDING').length,
+        FAILED: orders.filter(o => o.status === 'FAILED').length,
     };
 
     return (
         <div className="space-y-6">
-            <div className="flex justify-between items-center">
-                <h1 className="text-2xl font-bold text-slate-800">Order History</h1>
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                    <h1 className="text-2xl font-bold text-slate-800">Order Management</h1>
+                    <p className="text-slate-500 text-sm mt-1">{orders.length} orders processed through SAGA pipeline</p>
+                </div>
                 <button
                     onClick={fetchOrders}
-                    className="flex items-center px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors"
+                    className="flex items-center px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-all text-sm font-medium shadow-sm"
                 >
-                    <RefreshCw size={16} className={`mr-2 ${loading ? 'animate-spin' : ''}`} />
+                    <RefreshCw size={14} className={`mr-2 ${loading ? 'animate-spin' : ''}`} />
                     Refresh
                 </button>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm text-slate-600">
-                        <thead className="bg-slate-50 border-b border-slate-200">
-                            <tr>
-                                <th className="p-4 font-semibold">Order ID</th>
-                                <th className="p-4 font-semibold">Date</th>
-                                <th className="p-4 font-semibold">Destination</th>
-                                <th className="p-4 font-semibold">Items</th>
-                                <th className="p-4 font-semibold">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {orders.length === 0 && !loading ? (
-                                <tr>
-                                    <td colSpan="5" className="p-8 text-center text-slate-400">
-                                        No orders found. Create one to get started!
-                                    </td>
-                                </tr>
-                            ) : (
-                                orders.map((order) => (
-                                    <tr key={order.orderId} className="hover:bg-slate-50 transition-colors">
-                                        <td className="p-4 font-medium text-slate-800 flex items-center">
-                                            <Package size={16} className="mr-2 text-blue-500" />
-                                            {order.orderId}
-                                        </td>
-                                        <td className="p-4">
-                                            <div className="flex items-center">
-                                                <Calendar size={16} className="mr-2 text-slate-400" />
-                                                {new Date(order.createdAt).toLocaleDateString()}
-                                                <span className="text-xs text-slate-400 ml-1">
-                                                    {new Date(order.createdAt).toLocaleTimeString()}
-                                                </span>
-                                            </div>
-                                        </td>
-                                        <td className="p-4">
-                                            <div className="flex items-center text-slate-500">
-                                                <MapPin size={16} className="mr-2" />
-                                                {order.destination}
-                                            </div>
-                                        </td>
-                                        <td className="p-4">
-                                            {order.items.length} items
-                                        </td>
-                                        <td className="p-4">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(order.status)}`}>
-                                                {order.status}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+            {/* Status Filter Tabs */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                {Object.entries(statusCounts).map(([status, count]) => (
+                    <button
+                        key={status}
+                        onClick={() => setStatusFilter(status)}
+                        className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${statusFilter === status
+                                ? 'bg-blue-600 text-white shadow-sm shadow-blue-200'
+                                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                            }`}
+                    >
+                        {status === 'ALL' ? 'All' : status.charAt(0) + status.slice(1).toLowerCase()}
+                        <span className={`ml-2 text-xs px-1.5 py-0.5 rounded-full ${statusFilter === status ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                            }`}>
+                            {count}
+                        </span>
+                    </button>
+                ))}
             </div>
+
+            {/* Search */}
+            <div className="flex items-center bg-white rounded-xl border border-slate-200 px-4 py-2.5 shadow-sm">
+                <Search size={16} className="text-slate-400 mr-3" />
+                <input
+                    type="text"
+                    placeholder="Search by Order ID or destination..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="bg-transparent border-none outline-none text-sm w-full text-slate-700 placeholder-slate-400"
+                />
+                {searchTerm && (
+                    <button onClick={() => setSearchTerm('')} className="p-1 hover:bg-slate-100 rounded-lg transition-colors">
+                        <X size={14} className="text-slate-400" />
+                    </button>
+                )}
+            </div>
+
+            {/* Orders Table */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                {loading ? (
+                    <div className="py-16 text-center text-slate-400">
+                        <div className="w-8 h-8 border-2 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                        <p className="text-sm font-medium">Loading orders...</p>
+                    </div>
+                ) : filteredOrders.length === 0 ? (
+                    <div className="py-16 text-center text-slate-400">
+                        <Package size={36} className="mx-auto mb-3 opacity-30" />
+                        <p className="font-medium">No orders found</p>
+                        <p className="text-xs mt-1">
+                            {searchTerm ? 'Try a different search term.' : 'Create an order to get started.'}
+                        </p>
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left text-sm">
+                            <thead>
+                                <tr className="border-b border-slate-100">
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Order</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Date</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Destination</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Items</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">SAGA</th>
+                                    <th className="px-6 py-4"></th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-50">
+                                {filteredOrders.map((order) => {
+                                    const config = getStatusConfig(order.status);
+                                    const StatusIcon = config.icon;
+                                    const sagaSteps = order.logs?.length || 0;
+
+                                    return (
+                                        <tr key={order.orderId} className="hover:bg-slate-50/50 transition-colors group">
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center">
+                                                    <div className="p-2 bg-blue-50 rounded-lg mr-3 group-hover:bg-blue-100 transition-colors">
+                                                        <Package size={16} className="text-blue-600" />
+                                                    </div>
+                                                    <span className="font-semibold text-slate-800">{order.orderId}</span>
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="text-slate-700">
+                                                    {new Date(order.createdAt).toLocaleDateString()}
+                                                </div>
+                                                <div className="text-xs text-slate-400 mt-0.5">
+                                                    {new Date(order.createdAt).toLocaleTimeString()}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center text-slate-600 max-w-48 truncate">
+                                                    <MapPin size={14} className="mr-1.5 flex-shrink-0 text-slate-400" />
+                                                    {order.destination || '—'}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className="text-slate-600">{order.items?.length || 0} items</span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${config.bg} ${config.text} ${config.border}`}>
+                                                    <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${config.dot}`} />
+                                                    {order.status}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className="text-xs text-slate-500">{sagaSteps}/3 steps</span>
+                                                <div className="flex gap-0.5 mt-1">
+                                                    {[0, 1, 2].map(i => (
+                                                        <div key={i} className={`h-1 w-4 rounded-full ${i < sagaSteps ? 'bg-blue-500' : 'bg-slate-200'}`} />
+                                                    ))}
+                                                </div>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <button
+                                                    onClick={() => setSelectedOrder(selectedOrder?.orderId === order.orderId ? null : order)}
+                                                    className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                                >
+                                                    <Eye size={16} />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            {/* Order Detail Panel */}
+            {selectedOrder && (
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 animate-in">
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-bold text-slate-800">Order Details — {selectedOrder.orderId}</h3>
+                        <button onClick={() => setSelectedOrder(null)} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
+                            <X size={16} className="text-slate-400" />
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+                        <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">Destination</p>
+                            <p className="text-sm text-slate-700 flex items-center">
+                                <MapPin size={14} className="mr-1.5 text-slate-400" />
+                                {selectedOrder.destination || '—'}
+                            </p>
+                        </div>
+                        <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">Created</p>
+                            <p className="text-sm text-slate-700">{new Date(selectedOrder.createdAt).toLocaleString()}</p>
+                        </div>
+                        <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                            <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">Items</p>
+                            <p className="text-sm text-slate-700">{selectedOrder.items?.length || 0} items in package</p>
+                        </div>
+                    </div>
+
+                    {/* SAGA Log */}
+                    {selectedOrder.logs && selectedOrder.logs.length > 0 && (
+                        <div>
+                            <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">SAGA Transaction Log</h4>
+                            <div className="space-y-2">
+                                {selectedOrder.logs.map((log, i) => (
+                                    <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                        <div className="flex items-center">
+                                            <CheckCircle size={14} className={`mr-3 ${log.status === 'COMPLETED' ? 'text-emerald-500' : 'text-red-500'}`} />
+                                            <div>
+                                                <span className="text-sm font-medium text-slate-700">{log.step}</span>
+                                                {log.data?.packageId && <span className="text-xs text-slate-400 ml-2">{log.data.packageId}</span>}
+                                            </div>
+                                        </div>
+                                        <span className={`text-xs font-medium px-2 py-1 rounded-full ${log.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                                            }`}>
+                                            {log.status}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 };
