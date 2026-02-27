@@ -78,12 +78,40 @@ cd c:/Users/Chamudu Hansana/Desktop/Projects/SwiftLogistics
 
 ### Running the Project
 
+### ⚡ Super Quick Start (Windows)
+
+1. **Start RabbitMQ**:
+   ```bash
+   docker-compose up -d
+   ```
+
+### ⚡ Super Quick Start
+
+**Windows:**
+Double-click `start-dev.bat` or run:
+```bash
+.\start-dev.bat
+```
+
+**Mac / Linux:**
+Run the bash script:
+```bash
+chmod +x start-dev.sh
+./start-dev.sh
+```
+
+*These scripts will open separate terminal windows for all 13 services.*
+
+### Manual Startup
+
+If you prefer starting services individually:
+
 ```bash
 # Start all services with Docker Compose (coming soon)
 docker-compose up
-
-# Or start individual services
-npm run dev:mock-ros    # REST API on port 4002
+ 
+ # Or start individual services
+ npm run dev:mock-ros    # REST API on port 4002
 npm run dev:mock-cms    # SOAP service on port 4000
 npm run dev:mock-wms    # TCP service on port 4001
 
