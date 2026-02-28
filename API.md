@@ -2,45 +2,357 @@
 
 ## 📋 Table of Contents
 
-- [REST API](#rest-api)
-- [SOAP API](#soap-api)
-- [TCP API](#tcp-api)
-- [Message Formats](#message-formats)
+- [Authentication API](#authentication-api)
+- [Orders API](#orders-api)
+- [REST API (Routes)](#rest-api-routes)
+- [SOAP API (Client Management)](#soap-api-client-management)
+- [TCP API (Warehouse)](#tcp-api-warehouse)
+- [System Endpoints](#system-endpoints)
 - [Error Handling](#error-handling)
 
 ---
 
-## REST API
+## Gateway Access
 
-**Base URL**: `http://localhost:3001`
+**Base URL**: `http://localhost:5000`
 
-### Health Check
+All endpoints go through the API Gateway on port 5000. The gateway handles routing, authentication, and rate limiting.
 
-Check if the REST adapter is running.
+### Authentication Headers
 
-**Endpoint**: `GET /health`
+Most endpoints require authentication via one of:
 
-**Response**:
+```
+# JWT Bearer token (from frontend)
+Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+
+# API key (for internal services)
+x-api-key: swift-123-secret
+```
+
+### Public Endpoints (No Auth Required)
+- `POST /auth/login`
+- `POST /auth/register`
+- `POST /auth/refresh`
+- `GET /health`
+- `GET /metrics`
+
+---
+
+## Authentication API
+
+**Service**: Auth Service (Port 4005, proxied through Gateway)
+
+### Register
+
+Create a new user account.
+
+**Endpoint**: `POST /auth/register`  
+**Auth Required**: No
+
+**Request Body**:
 ```json
 {
-  "status": "OK",
-  "service": "REST Adapter",
-  "uptime": 12345
+  "name": "John Doe",
+  "email": "john@example.com",
+  "password": "secure123",
+  "role": "customer"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Full name |
+| `email` | string | Yes | Valid email address |
+| `password` | string | Yes | Min 6 characters |
+| `role` | string | No | `customer` (default) or `driver` |
+
+**Success Response** (201):
+```json
+{
+  "success": true,
+  "message": "Account created successfully",
+  "user": {
+    "id": "USR-A1B2C3D4",
+    "name": "John Doe",
+    "email": "john@example.com",
+    "role": "customer",
+    "title": "Business Client",
+    "avatar": "JD"
+  },
+  "tokens": {
+    "accessToken": "eyJhbGciOiJIUzI1NiIs...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiIs...",
+    "expiresIn": "15m"
+  }
 }
 ```
 
 ---
 
+### Login
+
+Authenticate and receive JWT tokens.
+
+**Endpoint**: `POST /auth/login`  
+**Auth Required**: No
+
+**Request Body**:
+```json
+{
+  "email": "sarah@swiftlogistics.com",
+  "password": "password123"
+}
+```
+
+**Success Response** (200):
+```json
+{
+  "success": true,
+  "message": "Login successful",
+  "user": {
+    "id": "USR-001",
+    "name": "Sarah Chen",
+    "email": "sarah@swiftlogistics.com",
+    "role": "admin",
+    "title": "Operations Manager"
+  },
+  "tokens": {
+    "accessToken": "eyJ...",
+    "refreshToken": "eyJ...",
+    "expiresIn": "15m"
+  }
+}
+```
+
+**Error Response** (401):
+```json
+{
+  "success": false,
+  "error": "Invalid credentials",
+  "message": "Email or password is incorrect"
+}
+```
+
+**Demo Credentials**:
+
+| Role | Email | Password |
+|------|-------|----------|
+| Admin | sarah@swiftlogistics.com | password123 |
+| Customer | james@acmecorp.com | password123 |
+| Driver | mike@swiftlogistics.com | password123 |
+
+---
+
+### Refresh Token
+
+Get a new access token using the refresh token.
+
+**Endpoint**: `POST /auth/refresh`  
+**Auth Required**: No
+
+**Request Body**:
+```json
+{
+  "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
+}
+```
+
+**Success Response** (200):
+```json
+{
+  "success": true,
+  "message": "Token refreshed successfully",
+  "tokens": {
+    "accessToken": "eyJ...(new)...",
+    "expiresIn": "15m"
+  }
+}
+```
+
+---
+
+### Logout
+
+Invalidate the current session.
+
+**Endpoint**: `POST /auth/logout`  
+**Auth Required**: Yes (Bearer token)
+
+**Success Response** (200):
+```json
+{
+  "success": true,
+  "message": "Logged out successfully"
+}
+```
+
+---
+
+### Get Profile
+
+Get the authenticated user's profile.
+
+**Endpoint**: `GET /auth/me`  
+**Auth Required**: Yes (Bearer token)
+
+**Success Response** (200):
+```json
+{
+  "success": true,
+  "user": {
+    "id": "USR-001",
+    "name": "Sarah Chen",
+    "email": "sarah@swiftlogistics.com",
+    "role": "admin",
+    "title": "Operations Manager",
+    "avatar": "SC",
+    "created_at": "2024-02-28T09:00:00.000Z"
+  }
+}
+```
+
+---
+
+### Verify Token
+
+Check if a token is valid (used by API Gateway).
+
+**Endpoint**: `GET /auth/verify`  
+**Auth Required**: Yes (Bearer token)
+
+**Success Response** (200):
+```json
+{
+  "success": true,
+  "valid": true,
+  "user": {
+    "userId": "USR-001",
+    "email": "sarah@swiftlogistics.com",
+    "role": "admin",
+    "name": "Sarah Chen"
+  }
+}
+```
+
+---
+
+### List Users (Admin Only)
+
+**Endpoint**: `GET /auth/users`  
+**Auth Required**: Yes (Admin Bearer token)
+
+**Success Response** (200):
+```json
+{
+  "success": true,
+  "count": 3,
+  "users": [
+    { "id": "USR-001", "name": "Sarah Chen", "role": "admin", ... },
+    { "id": "USR-002", "name": "James Wilson", "role": "customer", ... },
+    { "id": "USR-003", "name": "Mike Torres", "role": "driver", ... }
+  ]
+}
+```
+
+---
+
+## Orders API
+
+**Service**: Order Service (Port 4004, proxied through Gateway)
+
+### List Orders
+
+**Endpoint**: `GET /orders`  
+**Auth Required**: Yes
+
+**Success Response** (200):
+```json
+[
+  {
+    "id": "ORD-1709100000000",
+    "user_id": "USR-001",
+    "items": [{"sku": "ITEM-001", "quantity": 2}],
+    "destination": "42 Wallaby Way, Sydney",
+    "status": "COMPLETED",
+    "saga_log": [
+      {"step": "WAREHOUSE", "status": "COMPLETED"},
+      {"step": "LOGISTICS", "status": "COMPLETED"},
+      {"step": "LEGACY_CMS", "status": "COMPLETED"}
+    ],
+    "created_at": "2024-02-28T09:00:00.000Z"
+  }
+]
+```
+
+---
+
+### Create Order
+
+Triggers the SAGA orchestration (Warehouse → Logistics → CMS).
+
+**Endpoint**: `POST /orders`  
+**Auth Required**: Yes
+
+**Request Body**:
+```json
+{
+  "items": [
+    { "sku": "ITEM-001", "quantity": 2 },
+    { "sku": "ITEM-002", "quantity": 1 }
+  ],
+  "destination": "42 Wallaby Way, Sydney"
+}
+```
+
+**Success Response** (201):
+```json
+{
+  "success": true,
+  "orderId": "ORD-1709100000000",
+  "message": "Order created successfully",
+  "details": {
+    "packageId": "PKG-ORD-...",
+    "routeId": "RTE-...",
+    "status": "CONFIRMED"
+  },
+  "sagaLog": [
+    { "step": "WAREHOUSE", "status": "COMPLETED" },
+    { "step": "LOGISTICS", "status": "COMPLETED" },
+    { "step": "LEGACY_CMS", "status": "COMPLETED" }
+  ]
+}
+```
+
+---
+
+### Get Order
+
+**Endpoint**: `GET /orders/:orderId`  
+**Auth Required**: Yes
+
+**Success Response** (200):
+```json
+{
+  "id": "ORD-1709100000000",
+  "user_id": "USR-001",
+  "items": [...],
+  "destination": "...",
+  "status": "COMPLETED",
+  "saga_log": [...]
+}
+```
+
+---
+
+## REST API (Routes)
+
+**Service**: REST Adapter (Port 3001, proxied through Gateway)
+
 ### Optimize Route
 
-Optimize delivery route for a package.
-
-**Endpoint**: `POST /api/routes/optimize`
-
-**Headers**:
-```
-Content-Type: application/json
-```
+**Endpoint**: `POST /api/routes/optimize`  
+**Auth Required**: Yes
 
 **Request Body**:
 ```json
@@ -51,12 +363,11 @@ Content-Type: application/json
 }
 ```
 
-**Parameters**:
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `packageId` | string | Yes | Unique package identifier |
 | `address` | string | Yes | Delivery address |
-| `priority` | string | No | Priority level: "high", "medium", "low" (default: "medium") |
+| `priority` | string | No | `high`, `medium` (default), `low` |
 
 **Success Response** (200):
 ```json
@@ -69,656 +380,177 @@ Content-Type: application/json
 }
 ```
 
-**Error Response** (400):
-```json
-{
-  "success": false,
-  "error": "Missing required field: packageId"
-}
-```
-
-**Error Response** (500):
-```json
-{
-  "success": false,
-  "error": "Failed to optimize route"
-}
-```
-
-**Example**:
-```bash
-curl -X POST http://localhost:3001/api/routes/optimize \
-  -H "Content-Type: application/json" \
-  -d '{
-    "packageId": "PKG-001",
-    "address": "123 Main St, Colombo",
-    "priority": "high"
-  }'
-```
-
 ---
 
 ### Get Route
 
-Retrieve details of a specific route.
-
-**Endpoint**: `GET /api/routes/:routeId`
-
-**URL Parameters**:
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `routeId` | string | Route identifier |
-
-**Success Response** (200):
-```json
-{
-  "success": true,
-  "route": {
-    "routeId": "ROUTE-1001",
-    "driverId": "DRV-5",
-    "packageId": "PKG-001",
-    "status": "IN_TRANSIT",
-    "currentLocation": "Colombo Fort",
-    "estimatedDeliveryTime": "2024-02-15T14:30:00Z",
-    "distance": 24.5,
-    "createdAt": "2024-02-15T10:00:00Z"
-  }
-}
-```
-
-**Error Response** (404):
-```json
-{
-  "success": false,
-  "error": "Route not found"
-}
-```
-
-**Example**:
-```bash
-curl http://localhost:3001/api/routes/ROUTE-1001
-```
+**Endpoint**: `GET /api/routes/:routeId`  
+**Auth Required**: Yes
 
 ---
 
 ### Update Route
 
-Update route information.
-
-**Endpoint**: `PUT /api/routes/:routeId`
-
-**Headers**:
-```
-Content-Type: application/json
-```
+**Endpoint**: `PUT /api/routes/:routeId`  
+**Auth Required**: Yes
 
 **Request Body**:
 ```json
 {
   "status": "DELIVERED",
-  "currentLocation": "Destination",
-  "actualDeliveryTime": "2024-02-15T14:25:00Z"
+  "currentLocation": "Destination"
 }
 ```
 
-**Parameters**:
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `status` | string | No | Route status |
-| `currentLocation` | string | No | Current location |
-| `actualDeliveryTime` | string | No | Actual delivery timestamp |
+---
 
-**Success Response** (200):
+## SOAP API (Client Management)
+
+**Service**: SOAP Adapter (Port 3002, proxied through Gateway)
+
+### JSON Endpoint (via Gateway)
+
+**Endpoint**: `POST /soap/submit-order`  
+**Auth Required**: Yes
+
+**Request Body** (JSON — gateway converts to SOAP):
 ```json
 {
-  "success": true,
-  "message": "Route updated successfully"
+  "clientId": "CL-001",
+  "packageId": "PKG-001",
+  "pickupAddress": "100 Main Street, Kandy",
+  "deliveryAddress": "200 King Street, Galle",
+  "packageWeight": "5.5",
+  "packageDimensions": "30x20x15",
+  "deliveryType": "express"
 }
 ```
 
-**Example**:
-```bash
-curl -X PUT http://localhost:3001/api/routes/ROUTE-1001 \
-  -H "Content-Type: application/json" \
-  -d '{"status": "DELIVERED"}'
-```
+### Direct SOAP Endpoint
+
+**WSDL**: `GET /soap/wsdl`  
+**SOAP**: `POST /soap` (Content-Type: text/xml)
+
+### Operations
+- `SubmitOrder` — Create a new order
+- `GetOrderStatus` — Query order status
+- `CancelOrder` — Cancel an order
+- `GetClientInfo` — Retrieve client info
 
 ---
 
-## SOAP API
+## TCP API (Warehouse)
 
-**WSDL URL**: `http://localhost:3002/soap?wsdl`  
-**Endpoint**: `http://localhost:3002/soap`
+**Service**: TCP Adapter (Port 3003, accessed via REST proxy through Gateway)
 
-### SubmitOrder
+### Create Package
 
-Create a new order in the system.
+**Endpoint**: `POST /api/warehouse/packages`  
+**Auth Required**: Yes
 
-**Operation**: `SubmitOrder`
-
-**Request**:
-```xml
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-  <soap:Body>
-    <SubmitOrder xmlns="http://swiftlogistics.com/cms">
-      <clientId>CL-001</clientId>
-      <packageId>PKG-001</packageId>
-      <pickupAddress>100 Main Street, Kandy</pickupAddress>
-      <deliveryAddress>200 King Street, Galle</deliveryAddress>
-      <packageWeight>5.5</packageWeight>
-      <packageDimensions>30x20x15</packageDimensions>
-      <deliveryType>express</deliveryType>
-    </SubmitOrder>
-  </soap:Body>
-</soap:Envelope>
-```
-
-**Parameters**:
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `clientId` | string | Yes | Client identifier |
-| `packageId` | string | Yes | Package identifier |
-| `pickupAddress` | string | Yes | Pickup location |
-| `deliveryAddress` | string | Yes | Delivery destination |
-| `packageWeight` | float | Yes | Weight in kg |
-| `packageDimensions` | string | Yes | Dimensions (LxWxH cm) |
-| `deliveryType` | string | Yes | "standard" or "express" |
-
-**Response**:
-```xml
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-  <soap:Body>
-    <SubmitOrderResponse xmlns="http://swiftlogistics.com/cms">
-      <success>true</success>
-      <orderId>ORD-1001</orderId>
-      <message>Order successfully submitted</message>
-      <estimatedCost>25.50</estimatedCost>
-      <estimatedDeliveryDate>2024-02-16</estimatedDeliveryDate>
-    </SubmitOrderResponse>
-  </soap:Body>
-</soap:Envelope>
-```
-
-**Node.js Example**:
-```javascript
-import soap from 'soap';
-
-const url = 'http://localhost:3002/soap?wsdl';
-const client = await soap.createClientAsync(url);
-
-const args = {
-  clientId: 'CL-001',
-  packageId: 'PKG-001',
-  pickupAddress: '100 Main St',
-  deliveryAddress: '200 King St',
-  packageWeight: 5.5,
-  packageDimensions: '30x20x15',
-  deliveryType: 'express'
-};
-
-const result = await client.SubmitOrderAsync(args);
-console.log(result);
-```
-
----
-
-### GetOrderStatus
-
-Query the status of an existing order.
-
-**Operation**: `GetOrderStatus`
-
-**Request**:
-```xml
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-  <soap:Body>
-    <GetOrderStatus xmlns="http://swiftlogistics.com/cms">
-      <orderId>ORD-1001</orderId>
-    </GetOrderStatus>
-  </soap:Body>
-</soap:Envelope>
-```
-
-**Parameters**:
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `orderId` | string | Yes | Order identifier |
-
-**Response**:
-```xml
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-  <soap:Body>
-    <GetOrderStatusResponse xmlns="http://swiftlogistics.com/cms">
-      <success>true</success>
-      <orderId>ORD-1001</orderId>
-      <status>IN_TRANSIT</status>
-      <currentLocation>Processing Center - Colombo</currentLocation>
-      <estimatedDelivery>2024-02-16T10:00:00Z</estimatedDelivery>
-      <lastUpdate>2024-02-15T14:30:00Z</lastUpdate>
-    </GetOrderStatusResponse>
-  </soap:Body>
-</soap:Envelope>
-```
-
----
-
-### CancelOrder
-
-Cancel an existing order.
-
-**Operation**: `CancelOrder`
-
-**Request**:
-```xml
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-  <soap:Body>
-    <CancelOrder xmlns="http://swiftlogistics.com/cms">
-      <orderId>ORD-1001</orderId>
-      <reason>Customer request</reason>
-    </CancelOrder>
-  </soap:Body>
-</soap:Envelope>
-```
-
-**Parameters**:
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `orderId` | string | Yes | Order identifier |
-| `reason` | string | No | Cancellation reason |
-
-**Response**:
-```xml
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-  <soap:Body>
-    <CancelOrderResponse xmlns="http://swiftlogistics.com/cms">
-      <success>true</success>
-      <orderId>ORD-1001</orderId>
-      <message>Order cancelled successfully</message>
-      <refundAmount>25.50</refundAmount>
-    </CancelOrderResponse>
-  </soap:Body>
-</soap:Envelope>
-```
-
----
-
-### GetClientInfo
-
-Retrieve client information.
-
-**Operation**: `GetClientInfo`
-
-**Request**:
-```xml
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-  <soap:Body>
-    <GetClientInfo xmlns="http://swiftlogistics.com/cms">
-      <clientId>CL-001</clientId>
-    </GetClientInfo>
-  </soap:Body>
-</soap:Envelope>
-```
-
-**Response**:
-```xml
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-  <soap:Body>
-    <GetClientInfoResponse xmlns="http://swiftlogistics.com/cms">
-      <success>true</success>
-      <clientId>CL-001</clientId>
-      <name>Acme Corporation</name>
-      <email>contact@acme.com</email>
-      <phone>+94112345678</phone>
-      <address>123 Business St, Colombo</address>
-      <accountStatus>ACTIVE</accountStatus>
-    </GetClientInfoResponse>
-  </soap:Body>
-</soap:Envelope>
-```
-
----
-
-## TCP API
-
-**Protocol**: Custom length-prefixed JSON over TCP  
-**Endpoint**: `localhost:3003`
-
-### Protocol Specification
-
-**Message Structure**:
-```
-[4 bytes: Message Length (UInt32BE)] [JSON Payload]
-```
-
-**Example Wire Format**:
-```
-0x00 0x00 0x00 0x9E  {...JSON...}
-^                    ^
-|                    |
-Length (158 bytes)   Payload
-```
-
----
-
-### CREATE_PACKAGE
-
-Create a new package in the warehouse.
-
-**Action**: `CREATE_PACKAGE`
-
-**Request**:
+**Request Body**:
 ```json
 {
-  "action": "CREATE_PACKAGE",
-  "data": {
-    "packageId": "PKG-001",
-    "items": [
-      { "sku": "ITEM-001", "quantity": 2 },
-      { "sku": "ITEM-002", "quantity": 5 }
-    ],
-    "destination": "Warehouse B"
+  "packageId": "PKG-001",
+  "items": [
+    { "sku": "ITEM-001", "quantity": 2 }
+  ],
+  "destination": "Warehouse B"
+}
+```
+
+### Get Package Status
+
+**Endpoint**: `GET /api/warehouse/packages/:packageId`  
+**Auth Required**: Yes
+
+### Get Inventory
+
+**Endpoint**: `GET /api/warehouse/inventory`  
+**Auth Required**: Yes
+
+---
+
+## System Endpoints
+
+### Health Check
+
+**Endpoint**: `GET /health`  
+**Auth Required**: No
+
+```json
+{
+  "status": "healthy",
+  "timestamp": "2024-02-28T09:00:00Z",
+  "uptime": 3600,
+  "services": {
+    "restAdapter": "healthy",
+    "soapAdapter": "healthy",
+    "tcpAdapter": "assumed-healthy",
+    "authService": "healthy"
   }
 }
 ```
 
-**Parameters**:
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `packageId` | string | Yes | Package identifier |
-| `items` | array | Yes | Array of items with sku and quantity |
-| `destination` | string | Yes | Destination warehouse |
+### Metrics
 
-**Response**:
+**Endpoint**: `GET /metrics`  
+**Auth Required**: No
+
 ```json
 {
-  "status": "SUCCESS",
-  "packageId": "PKG-5001",
-  "estimatedPickTime": "2024-02-15T15:30:00Z",
-  "zone": "A1"
-}
-```
-
-**Node.js Example**:
-```javascript
-import net from 'net';
-
-const socket = new net.Socket();
-
-socket.connect(3003, 'localhost', () => {
-  const message = {
-    action: 'CREATE_PACKAGE',
-    data: {
-      packageId: 'PKG-001',
-      items: [{ sku: 'ITEM-001', quantity: 2 }],
-      destination: 'Warehouse B'
-    }
-  };
-  
-  const json = JSON.stringify(message);
-  const length = Buffer.byteLength(json);
-  
-  const lengthBuffer = Buffer.alloc(4);
-  lengthBuffer.writeUInt32BE(length, 0);
-  
-  socket.write(lengthBuffer);
-  socket.write(Buffer.from(json));
-});
-
-socket.on('data', (data) => {
-  const length = data.readUInt32BE(0);
-  const json = data.slice(4, 4 + length).toString();
-  const response = JSON.parse(json);
-  console.log(response);
-  socket.end();
-});
-```
-
----
-
-### GET_PACKAGE_STATUS
-
-Query the status of a package.
-
-**Action**: `GET_PACKAGE_STATUS`
-
-**Request**:
-```json
-{
-  "action": "GET_PACKAGE_STATUS",
-  "data": {
-    "packageId": "PKG-5001"
+  "uptime": "3600s",
+  "totalRequests": 150,
+  "successfulRequests": 145,
+  "failedRequests": 5,
+  "successRate": "96.67%",
+  "requestsByProtocol": {
+    "rest": 80,
+    "soap": 45,
+    "tcp": 25
   }
 }
 ```
-
-**Parameters**:
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `packageId` | string | Yes | Package identifier |
-
-**Response**:
-```json
-{
-  "status": "SUCCESS",
-  "package": {
-    "packageId": "PKG-5001",
-    "orderId": "ORD-1001",
-    "status": "PENDING",
-    "zone": "A1",
-    "estimatedPickTime": "2024-02-15T15:30:00Z",
-    "createdAt": "2024-02-15T14:00:00Z"
-  }
-}
-```
-
----
-
-### UPDATE_PACKAGE_STATUS
-
-Update the status of a package.
-
-**Action**: `UPDATE_PACKAGE_STATUS`
-
-**Request**:
-```json
-{
-  "action": "UPDATE_PACKAGE_STATUS",
-  "data": {
-    "packageId": "PKG-5001",
-    "newStatus": "PICKED"
-  }
-}
-```
-
-**Parameters**:
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `packageId` | string | Yes | Package identifier |
-| `newStatus` | string | Yes | New status: "PENDING", "PICKED", "PACKED", "SHIPPED" |
-
-**Response**:
-```json
-{
-  "status": "SUCCESS",
-  "packageId": "PKG-5001",
-  "newStatus": "PICKED"
-}
-```
-
----
-
-### GET_INVENTORY
-
-Retrieve current inventory levels.
-
-**Action**: `GET_INVENTORY`
-
-**Request**:
-```json
-{
-  "action": "GET_INVENTORY",
-  "data": {}
-}
-```
-
-**Response**:
-```json
-{
-  "status": "SUCCESS",
-  "inventory": [
-    {
-      "sku": "ITEM-001",
-      "name": "Laptop Computer",
-      "quantity": 50,
-      "zone": "A1"
-    },
-    {
-      "sku": "ITEM-002",
-      "name": "Wireless Mouse",
-      "quantity": 200,
-      "zone": "A2"
-    }
-  ]
-}
-```
-
----
-
-## Message Formats
-
-### RabbitMQ Message Format
-
-All messages sent through RabbitMQ follow this structure:
-
-```json
-{
-  "action": "ACTION_NAME",
-  "data": {
-    // Action-specific data
-  },
-  "timestamp": "2024-02-15T14:30:00Z"
-}
-```
-
-**Message Properties**:
-- `correlationId`: Unique identifier for request/reply matching
-- `replyTo`: Temporary queue for receiving responses
-- `persistent`: true (messages survive broker restarts)
-- `contentType`: "application/json"
 
 ---
 
 ## Error Handling
 
-### HTTP Error Codes (REST)
+### HTTP Status Codes
 
-| Code | Description |
-|------|-------------|
+| Code | Meaning |
+|------|---------|
 | 200 | Success |
-| 400 | Bad Request (invalid parameters) |
-| 404 | Not Found (resource doesn't exist) |
+| 201 | Created (new resource) |
+| 400 | Bad Request (invalid input) |
+| 401 | Unauthorized (missing/invalid token) |
+| 403 | Forbidden (insufficient role) |
+| 404 | Not Found |
+| 409 | Conflict (e.g., email already exists) |
+| 429 | Too Many Requests (rate limited) |
 | 500 | Internal Server Error |
-| 503 | Service Unavailable (worker timeout) |
 
-### SOAP Faults
-
-```xml
-<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
-  <soap:Body>
-    <soap:Fault>
-      <faultcode>soap:Server</faultcode>
-      <faultstring>Missing required field: ClientId</faultstring>
-    </soap:Fault>
-  </soap:Body>
-</soap:Envelope>
-```
-
-### TCP Error Responses
+### Error Response Format
 
 ```json
 {
-  "status": "ERROR",
-  "error": "Package not found"
+  "success": false,
+  "error": "Short error name",
+  "message": "Human-readable explanation"
 }
 ```
 
-### Common Error Messages
-
-| Error | Cause | Solution |
-|-------|-------|----------|
-| "Request timeout" | Worker not responding | Check if worker is running |
-| "Connection refused" | Service not running | Start the service |
-| "Missing required field" | Invalid request | Check request parameters |
-| "Package not found" | Invalid ID | Verify package exists |
-| "Insufficient quantity" | Out of stock | Check inventory levels |
-
 ---
 
-## Rate Limiting
+## Testing
 
-**Current Implementation**: No rate limiting (development)
-
-**Production Recommendations**:
-- REST: 100 requests/minute per IP
-- SOAP: 50 requests/minute per client
-- TCP: 200 messages/minute per connection
-
----
-
-## Testing Tools
-
-### REST
 ```bash
-curl -X POST http://localhost:3001/api/routes/optimize \
-  -H "Content-Type: application/json" \
-  -d '{"packageId":"PKG-001","address":"123 Main St","priority":"high"}'
-```
+# Auth tests (14 tests)
+node test-auth.js
 
-### SOAP
-- **Postman**: Import WSDL from `http://localhost:3002/soap?wsdl`
-- **SoapUI**: Create new SOAP project with WSDL URL
-- **Node.js**: Use `node-soap` library
-
-### TCP
-```bash
+# Protocol integration tests
 node test-all-protocols.js
+
+# Gateway tests
+node test-gateway.js
 ```
-
----
-
-## Postman Collection
-
-Import this collection to test REST APIs:
-
-```json
-{
-  "info": {
-    "name": "SwiftLogistics REST API",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
-  },
-  "item": [
-    {
-      "name": "Optimize Route",
-      "request": {
-        "method": "POST",
-        "header": [{"key": "Content-Type", "value": "application/json"}],
-        "url": "http://localhost:3001/api/routes/optimize",
-        "body": {
-          "mode": "raw",
-          "raw": "{\n  \"packageId\": \"PKG-001\",\n  \"address\": \"123 Main St\",\n  \"priority\": \"high\"\n}"
-        }
-      }
-    }
-  ]
-}
-```
-
----
-
-## Support
-
-For issues or questions:
-- Check logs in each service terminal
-- Verify RabbitMQ is running: `http://localhost:15672`
-- Run test suite: `node test-all-protocols.js`
-- View architecture: `ARCHITECTURE.md`

@@ -55,13 +55,22 @@ cd SwiftLogistics
 # Root dependencies (if any)
 npm install
 
+# Shared utilities
+cd shared/database && npm install && cd ../..
+
+# Core services
+cd auth-service && npm install && cd ..
+cd order-service && npm install && cd ..
+cd api-gateway && npm install && cd ..
+cd client-app && npm install && cd ..
+
 # Mock Services
 cd mock-services/mock-ros && npm install && cd ../..
 cd mock-services/mock-cms && npm install && cd ../..
 cd mock-services/mock-wms && npm install && cd ../..
 
 # Adapters
-cd  adapters/rest-adapter && npm install && cd ../..
+cd adapters/rest-adapter && npm install && cd ../..
 cd adapters/soap-adapter && npm install && cd ../..
 cd adapters/tcp-adapter && npm install && cd ../..
 
@@ -81,21 +90,23 @@ chmod +x install.sh
 install.bat
 ```
 
-### 3. Start RabbitMQ
+### 3. Start Infrastructure (RabbitMQ + PostgreSQL + pgAdmin)
 
 ```bash
 docker-compose up -d
 ```
 
-Verify RabbitMQ is running:
+Verify services are running:
 ```bash
 docker-compose ps
 ```
 
 Expected output:
 ```
-NAME            SERVICE    STATUS    PORTS
-rabbitmq        rabbitmq   Up        0.0.0.0:5672->5672/tcp, 0.0.0.0:15672->15672/tcp
+NAME                     SERVICE    STATUS    PORTS
+swiftlogistics-rabbitmq  rabbitmq   Up        0.0.0.0:5672->5672/tcp, 0.0.0.0:15672->15672/tcp
+swiftlogistics-postgres  postgres   Up        0.0.0.0:5432->5432/tcp
+swiftlogistics-pgadmin   pgadmin    Up        0.0.0.0:5050->5050/tcp
 ```
 
 ---
@@ -113,10 +124,24 @@ RABBITMQ_PORT=5672
 RABBITMQ_USER=admin
 RABBITMQ_PASSWORD=admin123
 
+# PostgreSQL Configuration
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=swiftlogistics
+DB_USER=swiftlogistics
+DB_PASSWORD=password123
+
+# JWT Secrets
+JWT_ACCESS_SECRET=your-access-secret
+JWT_REFRESH_SECRET=your-refresh-secret
+
 # Service Ports
 REST_ADAPTER_PORT=3001
 SOAP_ADAPTER_PORT=3002
 TCP_ADAPTER_PORT=3003
+ORDER_SERVICE_PORT=4004
+AUTH_SERVICE_PORT=4005
+GATEWAY_PORT=5000
 
 MOCK_CMS_PORT=4000
 MOCK_WMS_PORT=4001
@@ -140,9 +165,9 @@ environment:
 
 ## Running the System
 
-### Development Mode (10 Terminal Windows)
+### Development Mode (14 Terminal Windows)
 
-#### Terminal 1: RabbitMQ
+#### Terminal 1: Docker Infrastructure
 ```bash
 docker-compose up
 ```
@@ -199,6 +224,30 @@ node index.js
 ```bash
 cd workers/wms-worker
 node index.js
+```
+
+#### Terminal 11: Auth Service
+```bash
+cd auth-service
+npm run dev
+```
+
+#### Terminal 12: Order Service
+```bash
+cd order-service
+node index.js
+```
+
+#### Terminal 13: API Gateway
+```bash
+cd api-gateway
+npm run dev
+```
+
+#### Terminal 14: React Client
+```bash
+cd client-app
+npm run dev
 ```
 
 ### Quick Start Script
@@ -297,6 +346,11 @@ Expected output:
 📊 Overall: 3/3 protocols working (100%)
 ```
 
+#### Test Auth Service
+```bash
+node test-auth.js
+```
+
 ### Test Individual Protocols
 
 #### REST
@@ -345,6 +399,20 @@ Access at: `http://localhost:15672`
 - Message rates (messages/second)
 - Consumer counts (should match running workers)
 - Connection status (all services connected)
+
+### PostgreSQL via pgAdmin
+
+Access at: `http://localhost:5050`
+
+**Credentials**:
+- Email: `admin@swift.com`
+- Password: `admin123`
+- DB Password: `password123`
+
+**Key areas to check**:
+- Table row counts (users, orders)
+- Active connections
+- Query performance
 
 ### Service Logs
 
@@ -526,6 +594,19 @@ Create `ecosystem.config.js`:
 ```javascript
 module.exports = {
   apps: [
+    // Core Services
+    {
+      name: 'auth-service',
+      script: 'auth-service/index.js'
+    },
+    {
+      name: 'order-service',
+      script: 'order-service/index.js'
+    },
+    {
+      name: 'api-gateway',
+      script: 'api-gateway/index.js'
+    },
     // Adapters
     {
       name: 'rest-adapter',
@@ -738,11 +819,14 @@ node test-all-protocols.js
 
 | Version | Date | Changes |
 |---------|------|---------|
-| 2.0.0 | 2024-02-15 | Phase 2: Complete middleware integration |
-| 1.0.0 | 2024-02-12 | Phase 1: Mock services and core infrastructure |
+| 4.0.0 | 2026-02-28 | PostgreSQL database, pgAdmin, data persistence |
+| 3.5.0 | 2026-02-27 | JWT Auth Service, client app, dual authentication |
+| 3.0.0 | 2026-02-20 | API Gateway, security, SAGA orchestrator |
+| 2.0.0 | 2026-02-15 | Phase 2: Complete middleware integration |
+| 1.0.0 | 2026-02-12 | Phase 1: Mock services and core infrastructure |
 
 ---
 
 ## License
 
-This project is for educational purposes.
+MIT License — This project is for educational purposes.

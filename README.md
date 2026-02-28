@@ -1,278 +1,102 @@
-# SwiftLogistics - SwiftTrack Platform
+# SwiftLogistics — SwiftTrack Middleware Platform
 
-A middleware architecture project integrating heterogeneous systems (CMS, ROS, WMS) for logistics management.
+A full-stack middleware architecture integrating heterogeneous systems (CMS, ROS, WMS) for logistics management, featuring JWT authentication, PostgreSQL persistence, and a React dashboard.
 
 ## 🎯 Project Overview
 
-This project demonstrates a complete middleware solution featuring:
-- **Microservices Architecture** with Event-Driven Design
-- **RabbitMQ** for asynchronous message processing
-- **Protocol Adapters** for SOAP, REST, and TCP/IP integration
-- **SAGA Pattern** for distributed transaction management
-- **Real-time tracking** using WebSockets
+This project demonstrates a complete middleware solution:
+
+- **Microservices Architecture** — 13+ independent services
+- **Protocol Adapters** — REST, SOAP, and TCP/IP integration
+- **Message Broker** — RabbitMQ for async communication
+- **SAGA Pattern** — Distributed transaction orchestration
+- **JWT Authentication** — Secure login with role-based access
+- **PostgreSQL Database** — Persistent data storage
+- **React Dashboard** — Role-based UI with dark theme
 
 ## 📁 Project Structure
 
 ```
 SwiftLogistics/
-├── .agent/                          # Documentation and guides
-│   ├── SwiftLogistics_Architecture_Design.md
-│   ├── Middleware_Learning_Guide.md
-│   └── Message_Brokers_Deep_Dive.md
 │
-├── services/                        # Microservices
-│   ├── api-gateway/                # API Gateway service
-│   ├── order-service/              # Order orchestration service
-│   ├── auth-service/               # Authentication service
-│   ├── websocket-server/           # Real-time notification server
-│   └── workers/                    # Message queue workers
-│       ├── cms-worker/
-│       ├── wms-worker/
-│       └── ros-worker/
+├── mock-services/               # Simulated backend systems
+│   ├── mock-ros/               # REST API  (Route Optimization)  :4002
+│   ├── mock-cms/               # SOAP API  (Client Management)   :4000
+│   └── mock-wms/               # TCP API   (Warehouse Mgmt)      :4001
 │
-├── adapters/                        # Protocol adapters
-│   ├── cms-adapter/                # SOAP adapter for CMS
-│   ├── wms-adapter/                # TCP adapter for WMS
-│   └── ros-adapter/                # REST adapter for ROS
+├── adapters/                    # Protocol translation layer
+│   ├── rest-adapter/           # HTTP/JSON adapter               :3001
+│   ├── soap-adapter/           # SOAP/XML adapter                :3002
+│   └── tcp-adapter/            # TCP/Binary adapter              :3003
 │
-├── mock-services/                   # Mock backend systems
-│   ├── mock-cms/                   # Mock SOAP service
-│   ├── mock-wms/                   # Mock TCP service
-│   └── mock-ros/                   # Mock REST service
+├── workers/                     # RabbitMQ message processors
+│   ├── ros-worker/             # REST → RabbitMQ bridge
+│   ├── cms-worker/             # SOAP → RabbitMQ bridge
+│   └── wms-worker/             # TCP → RabbitMQ bridge
 │
-├── client/                          # Frontend applications
-│   ├── web-portal/                 # React web application
-│   └── mobile-app/                 # React Native mobile app
+├── api-gateway/                 # Unified entry point             :5000
+│   └── index.js                # Routing, JWT/API key auth, metrics
 │
-├── shared/                          # Shared utilities
-│   ├── rabbitmq/                   # RabbitMQ connection utilities
-│   ├── database/                   # Database utilities
-│   └── utils/                      # Common utilities
+├── auth-service/                # JWT authentication              :4005
+│   ├── index.js                # Login, register, refresh, logout
+│   ├── jwt-utils.js            # Token generation & verification
+│   ├── password-utils.js       # bcrypt hashing
+│   ├── user-store.js           # PostgreSQL user queries
+│   └── middleware.js           # requireAuth, requireRole
 │
-├── docker/                          # Docker configurations
-│   ├── docker-compose.yml          # Development environment
-│   └── docker-compose.prod.yml     # Production environment
+├── order-service/               # SAGA orchestrator               :4004
+│   └── index.js                # Multi-step order creation
 │
-└── docs/                            # Additional documentation
-    ├── api/                        # API documentation
-    └── diagrams/                   # Architecture diagrams
+├── shared/                      # Shared utilities
+│   └── database/               # PostgreSQL connection pool
+│       └── index.js            # Schema init, query helpers
+│
+├── client-app/                  # React frontend (Vite)           :5173
+│   ├── src/
+│   │   ├── pages/              # Login, Dashboard, Orders, etc.
+│   │   ├── context/            # AuthContext (JWT state)
+│   │   ├── services/           # API client (auto token attach)
+│   │   └── components/         # Layout, Sidebar, etc.
+│   └── ...
+│
+├── docker-compose.yml           # RabbitMQ + PostgreSQL + pgAdmin
+├── test-auth.js                 # Auth service test suite
+├── test-all-protocols.js        # Protocol integration tests
+└── test-gateway.js              # Gateway test suite
 ```
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- Node.js 18+ 
-- Docker Desktop
-- Git
+- **Node.js** 18+
+- **Docker Desktop** (for RabbitMQ + PostgreSQL)
+- **Git**
 
-### Installation
+### 1. Start Infrastructure
 
 ```bash
-# Clone the repository
-cd c:/Users/Chamudu Hansana/Desktop/Projects/SwiftLogistics
-
-# Install dependencies (we'll do this for each service)
-# (Instructions below)
+docker-compose up -d
 ```
 
-### Running the Project
+This starts **3 containers**:
+| Container | Port | Purpose |
+|-----------|------|---------|
+| PostgreSQL | 5432 | Database |
+| RabbitMQ | 5672 / 15672 | Message broker + management UI |
+| pgAdmin | 5050 | Database visual interface |
 
-### ⚡ Super Quick Start (Windows)
-
-1. **Start RabbitMQ**:
-   ```bash
-   docker-compose up -d
-   ```
-
-### ⚡ Super Quick Start
-
-**Windows:**
-Double-click `start-dev.bat` or run:
-```bash
-.\start-dev.bat
-```
-
-**Mac / Linux:**
-Run the bash script:
-```bash
-chmod +x start-dev.sh
-./start-dev.sh
-```
-
-*These scripts will open separate terminal windows for all 13 services.*
-
-### Manual Startup
-
-If you prefer starting services individually:
+### 2. Install Dependencies
 
 ```bash
-# Start all services with Docker Compose (coming soon)
-docker-compose up
- 
- # Or start individual services
- npm run dev:mock-ros    # REST API on port 4002
-npm run dev:mock-cms    # SOAP service on port 4000
-npm run dev:mock-wms    # TCP service on port 4001
+# Core services
+cd shared/database && npm install && cd ../..
+cd auth-service && npm install && cd ..
+cd order-service && npm install && cd ..
+cd api-gateway && npm install && cd ..
+cd client-app && npm install && cd ..
 
-# Start all mock services at once
-npm run dev:all-mocks
-```
-
-### Testing the Services
-
-**Option 1: Browser Dashboard (Visual)**
-```bash
-# Open in browser
-test-dashboard.html
-```
-
-**Option 2: Command Line Tests**
-```bash
-# Test Mock ROS
-cd mock-services/mock-ros
-node test.js
-
-# Test Mock CMS
-cd mock-services/mock-cms
-node test.js
-
-# Test Mock WMS
-cd mock-services/mock-wms
-node test.js
-```
-
-**Option 3: Middleware Integration Tests (Phase 2)**
-```bash
-# Make sure services are running:
-# 1. RabbitMQ: docker-compose up -d
-# 2. Mock ROS: npm run dev:mock-ros
-# 3. REST Adapter: node adapters/rest-adapter/index.js
-# 4. ROS Worker: node workers/ros-worker/index.js
-
-# Run comprehensive middleware tests
-node test-middleware.js
-```
-
-## 📚 Documentation
-
-- [Architecture Design](./.agent/SwiftLogistics_Architecture_Design.md)
-- [Middleware Learning Guide](./.agent/Middleware_Learning_Guide.md)
-- [Message Brokers Deep Dive](./.agent/Message_Brokers_Deep_Dive.md)
-
-## 🎓 Learning Approach
-
-This project is built incrementally with a focus on understanding:
-- **Why** we need each component
-- **What** each pattern solves
-- **How** to implement it correctly
-
-## 📝 Implementation Phases
-
-- [x] **Phase 0: Architecture Design**
-  - [x] Complete architecture documentation
-  - [x] Middleware learning guide
-  - [x] Message## ✅ Current Progress: Phase 2 COMPLETE (100%)
-
-### 🎉 Phase 2: Integration Layer - COMPLETE
-
-**All protocol adapters and workers are fully implemented and tested!**
-
-#### Protocol Adapters ✅
-- [x] **REST Adapter** (Port 3001) - HTTP/JSON protocol adapter
-  - Route optimization endpoint
-  - Get/Update route endpoints
-  - Full RabbitMQ integration
-- [x] **SOAP Adapter** (Port 3002) - SOAP/XML protocol adapter
-  - WSDL service definition
-  - SubmitOrder, GetOrderStatus, CancelOrder, GetClientInfo operations
-  - XML to JSON transformation
-- [x] **TCP Adapter** (Port 3003) - Binary socket protocol adapter
-  - Length-prefixed JSON protocol
-  - CREATE_PACKAGE, GET_PACKAGE_STATUS, UPDATE_PACKAGE_STATUS, GET_INVENTORY
-  - Binary data handling
-
-#### Workers ✅
-- [x] **ROS Worker** - Route Optimization System integration
-  - REST client for Mock ROS
-  - Route optimization processing
-  - Full request/reply pattern
-- [x] **CMS Worker** - Client Management System integration
-  - SOAP client for Mock CMS
-  - Order management operations
-  - PascalCase/camelCase transformation
-- [x] **WMS Worker** - Warehouse Management System integration
-  - TCP client for Mock WMS
-  - Package and inventory operations
-  - Binary protocol handling
-
-#### Message Broker ✅
-- [x] **RabbitMQ Integration**
-  - 3 exchanges (ros_exchange, cms_exchange, wms_exchange)
-  - 11 queues with proper routing
-  - Request/Reply pattern implementation
-  - Message persistence and acknowledgment
-
-#### Testing & Documentation ✅
-- [x] **Complete Test Suite** (`test-all-protocols.js`)
-  - REST protocol integration tests
-  - SOAP protocol integration tests
-  - TCP protocol integration tests
-  - **100% pass rate** ✅
-- [x] **Interactive Dashboard** (`middleware-dashboard.html`)
-  - Real-time service status monitoring
-  - Live REST API testing
-  - Protocol documentation
-- [x] **Comprehensive Documentation**
-  - Architecture design (`ARCHITECTURE.md`)
-  - API reference (`API.md`)
-  - Deployment guide (`DEPLOYMENT.md`)
-  - Setup instructions (`SETUP_GUIDE.md`)
-
-### Phase 1: Foundation - COMPLETE ✅
-- [x] Project setup and structure
-- [x] Docker configuration for RabbitMQ
-- [x] Mock ROS service (REST API)
-- [x] Mock CMS service (SOAP)
-- [x] Mock WMS service (TCP)
-- [x] Basic documentation
-
----
-
-## 📊 Project Statistics
-
-| Metric | Count |
-|--------|-------|
-| **Protocol Adapters** | 3 (REST, SOAP, TCP) |
-| **Workers** | 3 (ROS, CMS, WMS) |
-| **Mock Services** | 3 (ROS, CMS, WMS) |
-| **Total Services** | 10 (including RabbitMQ) |
-| **API Endpoints** | 15+ |
-| **Test Coverage** | 100% (all protocols tested) |
-| **Documentation Pages** | 4 (Architecture, API, Deploy, Setup) |
-| **Lines of Code** | 3000+ |
-
----
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Node.js 18.x or higher
-- Docker & Docker Compose
-- 10 terminal windows (or use startup script)
-
-### Installation
-
-1. **Clone and Install**
-```bash
-git clone <repository-url>
-cd SwiftLogistics
-npm install
-```
-
-2. **Install All Dependencies**
-```bash
-# Install for each service
+# Mock services & adapters
 cd mock-services/mock-ros && npm install && cd ../..
 cd mock-services/mock-cms && npm install && cd ../..
 cd mock-services/mock-wms && npm install && cd ../..
@@ -284,142 +108,158 @@ cd workers/cms-worker && npm install && cd ../..
 cd workers/wms-worker && npm install && cd ../..
 ```
 
-3. **Start RabbitMQ**
-```bash
-docker-compose up -d
-```
+### 3. Start Services
 
-4. **Start All Services** (in separate terminals)
+Start each in a separate terminal:
+
 ```bash
-# Terminal 1: Mock ROS
+# Mock backends
 cd mock-services/mock-ros && npm run dev
-
-# Terminal 2: Mock CMS
 cd mock-services/mock-cms && npm run dev
-
-# Terminal 3: Mock WMS
 cd mock-services/mock-wms && npm run dev
 
-# Terminal 4: REST Adapter
+# Protocol adapters
 cd adapters/rest-adapter && node index.js
-
-# Terminal 5: SOAP Adapter
 cd adapters/soap-adapter && node index.js
-
-# Terminal 6: TCP Adapter
 cd adapters/tcp-adapter && node index.js
 
-# Terminal 7: ROS Worker
+# Workers
 cd workers/ros-worker && node index.js
-
-# Terminal 8: CMS Worker
 cd workers/cms-worker && node index.js
-
-# Terminal 9: WMS Worker
 cd workers/wms-worker && node index.js
+
+# Core services
+cd auth-service && npm run dev
+cd order-service && node index.js
+cd api-gateway && npm run dev
+
+# Frontend
+cd client-app && npm run dev
 ```
 
-5. **Test Everything**
+### 4. Access
+
+| Service | URL |
+|---------|-----|
+| **React App** | http://localhost:5173 |
+| **API Gateway** | http://localhost:5000 |
+| **RabbitMQ UI** | http://localhost:15672 (admin / admin123) |
+| **pgAdmin** | http://localhost:5050 (admin@swift.com / admin123) |
+
+### 5. Test
+
 ```bash
-node test-all-protocols.js
+node test-auth.js           # Auth service tests
+node test-all-protocols.js  # Protocol integration tests
+node test-gateway.js        # Gateway tests
 ```
 
-Expected output:
+## 🏗️ Architecture
+
 ```
-🎉🎉🎉 ALL PROTOCOLS WORKING! 🎉🎉🎉
-✅ REST Protocol:  PASSED
-✅ SOAP Protocol:  PASSED
-✅ TCP Protocol:   PASSED
-📊 Overall: 3/3 protocols working (100%)
+┌─────────────────┐
+│   React Client  │ ← Role-based dashboards (admin/customer/driver)
+│   (Port 5173)   │
+└────────┬────────┘
+         │ JWT Bearer Token
+         ▼
+┌──────────────────────────────────────────────────────┐
+│              🌐 API GATEWAY (Port 5000)               │
+│  ┌─────────┐  ┌──────────┐  ┌───────────────────┐   │
+│  │JWT Auth  │  │Rate Limit│  │Intelligent Routing│   │
+│  └─────────┘  └──────────┘  └───────────────────┘   │
+└───┬─────────┬──────────┬──────────┬─────────────────┘
+    │         │          │          │
+    ▼         ▼          ▼          ▼
+┌────────┐┌────────┐┌────────┐┌──────────┐
+│  Auth  ││ Order  ││REST    ││SOAP      │  ← Service Layer
+│Service ││Service ││Adapter ││Adapter   │
+│ :4005  ││ :4004  ││ :3001  ││ :3002    │
+└───┬────┘└───┬────┘└───┬────┘└────┬─────┘
+    │         │         │          │         ┌────────┐
+    ▼         ▼         ▼          ▼         │TCP     │
+┌──────────────────┐  ┌──────────────────┐   │Adapter │
+│   PostgreSQL     │  │    RabbitMQ      │   │ :3003  │
+│   (Port 5432)    │  │   (Port 5672)    │   └───┬────┘
+│  ┌─────┐┌──────┐│  │  ┌─────┐┌──────┐│       │
+│  │users││orders││  │  │queue ││queue ││       ▼
+│  └─────┘└──────┘│  │  └─────┘└──────┘│   RabbitMQ
+└──────────────────┘  └────────┬────────┘
+                               │
+                    ┌──────────┼──────────┐
+                    ▼          ▼          ▼
+               ┌────────┐┌────────┐┌────────┐
+               │  ROS   ││  CMS   ││  WMS   │  ← Workers
+               │ Worker ││ Worker ││ Worker │
+               └───┬────┘└───┬────┘└───┬────┘
+                   ▼         ▼         ▼
+               ┌────────┐┌────────┐┌────────┐
+               │Mock ROS││Mock CMS││Mock WMS│  ← Simulated Systems
+               │ :4002  ││ :4000  ││ :4001  │
+               └────────┘└────────┘└────────┘
 ```
 
----
+## 📊 Service Port Map
+
+| Port | Service | Protocol |
+|------|---------|----------|
+| 3001 | REST Adapter | HTTP/JSON |
+| 3002 | SOAP Adapter | SOAP/XML |
+| 3003 | TCP Adapter | TCP/Binary |
+| 4000 | Mock CMS | SOAP |
+| 4001 | Mock WMS | TCP |
+| 4002 | Mock ROS | REST |
+| 4004 | Order Service (SAGA) | HTTP |
+| 4005 | Auth Service (JWT) | HTTP |
+| 5000 | API Gateway | HTTP |
+| 5173 | React Client | HTTP |
+| 5432 | PostgreSQL | PostgreSQL |
+| 5672 | RabbitMQ (AMQP) | AMQP |
+| 15672 | RabbitMQ (UI) | HTTP |
+| 5050 | pgAdmin (UI) | HTTP |
+
+## 📝 Implementation Progress
+
+- [x] **Phase 1: Foundation** — Mock services (REST, SOAP, TCP)
+- [x] **Phase 2: Integration** — Adapters, Workers, RabbitMQ
+- [x] **Phase 3: Gateway & Security** — API Gateway, rate limiting, resilience
+- [x] **Phase 3.5: SAGA Pattern** — Order Service, distributed transactions
+- [x] **Auth Service** — JWT login, registration, RBAC, refresh tokens
+- [x] **Database** — PostgreSQL, connection pooling, schema auto-creation
+- [x] **Client App** — React dashboard, real login, role-based views
+- [ ] **WebSocket Server** — Real-time order tracking
+- [ ] **Polish** — Wire all pages to live data
 
 ## 📚 Documentation
 
 | Document | Description |
 |----------|-------------|
-| **[ARCHITECTURE.md](./ARCHITECTURE.md)** | Complete system architecture, data flows, and component design |
-| **[API.md](./API.md)** | Detailed API reference for REST, SOAP, and TCP protocols |
-| **[DEPLOYMENT.md](./DEPLOYMENT.md)** | Installation, configuration, and deployment guide |
-| **[SETUP_GUIDE.md](./SETUP_GUIDE.md)** | Personal learning guide and middleware concepts |
-| **[DOCKER.md](./DOCKER.md)** | Docker and RabbitMQ setup instructions |
-
----
-
-## 🎯 Testing
-
-### Run Complete Test Suite
-```bash
-node test-all-protocols.js
-```
-
-### Test Individual Protocols
-
-**REST**:
-```bash
-curl -X POST http://localhost:3001/api/routes/optimize \
-  -H "Content-Type: application/json" \
-  -d '{"packageId":"PKG-001","address":"123 Main St","priority":"high"}'
-```
-
-**SOAP**:
-```
-Open: http://localhost:3002/soap?wsdl
-Use: Postman or SoapUI
-```
-
-**TCP**:
-```bash
-node test-all-protocols.js
-```
-
-### Interactive Dashboard
-Open `middleware-dashboard.html` in your browser for real-time monitoring and testing.
-
----
-### ✅ Phase 3: Advanced Middleware Features (Current)
-- [x] **API Gateway**: Unified entry point (Port 5000) for all protocols.
-- [x] **Monitoring & Observability**: Real-time dashboard, structured logging (Winston), and metrics.
-- [x] **Security**: API Keys, Rate Limiting.
-- [x] **Resilience**: Retries & Error Handling.
-- [x] **Order Service**: SAGA Pattern Orchestrator (Port 4004).
-- [ ] **Auth Service**: Implementing JWT/Login logic.
-- [ ] **WebSocket Server**: For real-time order tracking updates.
-
-- [ ] **Phase 4: Client Applications**
-  - [ ] Web portal (React)
-  - [ ] Real-time tracking interface
-  - [ ] Mobile app (optional)
-
-- [ ] **Phase 5: Polish & Features**
-  - [ ] Performance optimization
-  - [ ] Complete documentation
+| [ARCHITECTURE.md](./ARCHITECTURE.md) | System architecture, data flows, component design |
+| [API.md](./API.md) | API reference for REST, SOAP, TCP endpoints |
+| [DOCKER.md](./DOCKER.md) | Docker setup, PostgreSQL & RabbitMQ commands |
+| [SETUP_GUIDE.md](./SETUP_GUIDE.md) | Setup instructions and learning concepts |
+| [DEPLOYMENT.md](./DEPLOYMENT.md) | Deployment and configuration guide |
 
 ## 🛠️ Technology Stack
 
-- **Runtime:** Node.js 18+
-- **Message Broker:** RabbitMQ
-- **Database:** PostgreSQL
-- **Cache:** Redis
-- **Frontend:** React + Vite
-- **WebSockets:** Socket.io
-- **Containerization:** Docker
+| Layer | Technology |
+|-------|-----------|
+| **Frontend** | React 18, Vite, Lucide Icons |
+| **API Gateway** | Express.js, Winston logging |
+| **Auth** | JWT, bcrypt, express-rate-limit |
+| **Database** | PostgreSQL 15, node-postgres (pg) |
+| **Message Broker** | RabbitMQ 3.12, amqplib |
+| **Protocols** | REST, SOAP (soap), TCP (net) |
+| **Containers** | Docker, Docker Compose |
+| **DB Admin** | pgAdmin 4 |
 
-## 👤 About This Project
+## 👤 About
 
-A personal learning project exploring middleware architecture patterns and microservices integration. Built incrementally to understand the "why," "what," and "how" of distributed systems.
-
-### Learning Goals
-- Master different communication protocols (REST, SOAP, TCP/IP)
-- Understand message broker patterns with RabbitMQ
-- Implement distributed transaction management (SAGA pattern)
-- Build real-time systems with WebSockets
-- Practice microservices architecture
+A personal learning project exploring middleware architecture patterns and microservices integration. Built incrementally to understand distributed systems, protocol translation, and enterprise integration patterns.
 
 ## 📄 License
 
-MIT License - Feel free to use this for your own learning!
+MIT License — Feel free to use this for your own learning!
 
 ---
 

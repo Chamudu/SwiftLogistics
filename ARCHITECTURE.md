@@ -11,82 +11,221 @@
 
 ## Overview
 
-SwiftLogistics is a distributed middleware system that integrates multiple legacy systems using different communication protocols (REST, SOAP, TCP) through a central message broker (RabbitMQ).
+SwiftLogistics is a full-stack distributed middleware system that integrates multiple legacy systems using different communication protocols (REST, SOAP, TCP) through a central message broker (RabbitMQ), with JWT authentication, PostgreSQL persistence, and a React dashboard.
 
 ### Key Objectives
 
 - **Protocol Abstraction**: Hide protocol complexity from business logic
 - **Decoupling**: Services communicate asynchronously via message broker
+- **Authentication**: JWT-based auth with role-based access control
+- **Persistence**: PostgreSQL database for users, orders, and tokens
 - **Scalability**: Horizontal scaling of workers and adapters
-- **Reliability**: Message persistence and acknowledgment patterns
+- **Reliability**: Message persistence, ACID transactions, SAGA pattern
 
 ## System Architecture
 
-### High-Level Architecture
+### Diagram 1 — Layered Architecture (Layers & Tiers)
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      CLIENT LAYER                           │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐                 │
-│  │  REST    │  │  SOAP    │  │   TCP    │                 │
-│  │ Clients  │  │ Clients  │  │ Clients  │                 │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘                 │
-└───────┼─────────────┼─────────────┼───────────────────────┘
-        │             │             │
-        ▼             ▼             ▼
-┌─────────────────────────────────────────────────────────────┐
-│                   API GATEWAY LAYER                         │
-│             (Port 5000 | Monitoring & Auth)                 │
-│                                                             │
-│   ┌────────────────────────────────────────────────────┐    │
-│   │             ⚡  Unified Entry Point  ⚡             │    │
-│   └───────────────────────┬────────────────────────────┘    │
-│                           │                                 │
-└───────────────────────────┼─────────────────────────────────┘
-                            │
-┌───────────────────────────▼─────────────────────────────────┐
-│                     ADAPTER LAYER                           │
-│  ┌────▼─────┐  ┌───▼──────┐  ┌──▼───────┐               │
-│  │   REST   │  │   SOAP   │  │   TCP    │               │
-│  │ Adapter  │  │ Adapter  │  │ Adapter  │               │
-│  │ :3001    │  │  :3002   │  │  :3003   │               │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘               │
-└───────┼─────────────┼─────────────┼───────────────────────┘
-        │             │             │
-        └─────────────┼─────────────┘
-                      │
-┌─────────────────────▼─────────────────────────────────────┐
-│              MESSAGE BROKER (RabbitMQ)                     │
-│  ┌───────────────┐  ┌───────────────┐  ┌──────────────┐  │
-│  │ ros_exchange  │  │ cms_exchange  │  │ wms_exchange │  │
-│  └───────┬───────┘  └───────┬───────┘  └──────┬───────┘  │
-│          │                  │                  │          │
-│  ┌───────▼───────┐  ┌───────▼───────┐  ┌──────▼───────┐  │
-│  │ route.optimize│  │ order.submit  │  │package.create│  │
-│  │ route.get     │  │ order.status  │  │package.status│  │
-│  │ route.update  │  │ order.cancel  │  │package.update│  │
-│  │               │  │ client.info   │  │inventory.get │  │
-│  └───────┬───────┘  └───────┬───────┘  └──────┬───────┘  │
-└──────────┼──────────────────┼──────────────────┼─────────┘
-           │                  │                  │
-┌──────────┼──────────────────┼──────────────────┼─────────┐
-│          │                  │                  │         │
-│  ┌───────▼───────┐  ┌───────▼───────┐  ┌──────▼───────┐ │
-│  │  ROS Worker   │  │  CMS Worker   │  │  WMS Worker  │ │
-│  └───────┬───────┘  └───────┬───────┘  └──────┬───────┘ │
-└──────────┼──────────────────┼──────────────────┼─────────┘
-           │                  │                  │
-┌──────────┼──────────────────┼──────────────────┼─────────┐
-│  ┌───────▼───────┐  ┌───────▼───────┐  ┌──────▼───────┐ │
-│  │   Mock ROS    │  │   Mock CMS    │  │   Mock WMS   │ │
-│  │   REST API    │  │  SOAP Service │  │  TCP Socket  │ │
-│  │    :4002      │  │     :4000     │  │    :4001     │ │
-│  └───────────────┘  └───────────────┘  └──────────────┘ │
-│                    LEGACY SYSTEMS LAYER                  │
-└──────────────────────────────────────────────────────────┘
+ LAYER                        COMPONENTS                                     TIER
+ ─────                        ──────────                                     ────
+
+                           ┌─────────────────────────────────────────┐
+ PRESENTATION              │          React Dashboard (:5173)        │      Tier 1
+ LAYER                     │     JWT Auth  •  Role-Based Views       │    (Client)
+                           └─────────────────────┬───────────────────┘
+                                                 │ HTTP (fetch)
+                          ┌──────────────────────▼───────────────────┐
+ GATEWAY                  │          API GATEWAY (:5000)             │      Tier 2
+ LAYER                    │   JWT Auth • Rate Limit • Routing • Logs │    (Server)
+                          └──────────────────────┬───────────────────┘
+                                                 │ HTTP (proxy)
+                    ┌────────────┬───────────────┼───────────┬──────────┐
+                    ▼            ▼               ▼           ▼          ▼
+               ┌───────── ┐   ┌─────────┐    ┌─────────┐┌─────────┐┌─────────┐
+ BUSINESS      │  Auth    │   │  Order  │    │  REST   ││  SOAP   ││  TCP    │
+ LOGIC         │  Service │   │ Service │    │ Adapter ││ Adapter ││ Adapter │
+ LAYER         │  :4005   │   │  :4004  │    │  :3001  ││  :3002  ││  :3003  │
+               └────┬─────┘   └──┬──┬───┘    └────┬────┘└────┬────┘└────┬────┘
+                    │            │  │             │          │          │
+                    │  ┌─────────┘  │             └───────── ┼──────────┘
+                    │  │            │ SAGA (HTTP)            │ AMQP
+                    ▼  ▼            └──────────────┐         │
+              ┌────────────┐                       │         ▼
+ DATA         │ PostgreSQL │               ┌───────┴───────────────────┐
+ LAYER        │   :5432    │    MESSAGE    │       RabbitMQ (:5672)    │    Tier 2
+              └────────────┘    BROKER     │  3 Exchanges • 11 Queues  │  (Server)
+                                LAYER      └─────┬─────────┬─────────┬─┘
+                                                 │         │         │ AMQP
+                                            ┌────▼───┐┌────▼───┐┌────▼───┐
+ INTEGRATION                                │  ROS   ││  CMS   ││  WMS   │
+ LAYER                                      │ Worker ││ Worker ││ Worker │
+                                            └────┬───┘└────┬───┘└────┬───┘
+                                                 │         │         │
+                                              HTTP(REST) SOAP(XML) TCP(Binary)
+                                                 │         │         │
+                                            ┌────▼───┐┌────▼───┐┌────▼───┐
+ EXTERNAL                                   │Mock ROS││Mock CMS││Mock WMS│   Tier 3
+ SYSTEMS                                    │ :4002  ││ :4000  ││ :4001  │  (Data /
+                                            └────────┘└────────┘└────────┘  External)
+
+ ADMIN TOOLS:   pgAdmin (:5050) ──── TCP ────→ PostgreSQL (:5432)
+                RabbitMQ UI (:15672)              (web dashboards)
 ```
+
+### Diagram 2 — Connection Map (Who Talks to Whom)
+
+Every arrow below is a real network connection in the system:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                                                                         │
+│   React App (:5173)                                                     │
+│      │                                                                  │
+│      │ ① HTTP GET/POST (JWT Bearer token in Authorization header)       │
+│      ▼                                                                  │
+│   API Gateway (:5000)                                                   │
+│      │                                                                  │
+│      ├── ② HTTP POST /auth/* ──────────────→ Auth Service (:4005)       │
+│      │                                          │                       │
+│      │                                          │ ③ SQL queries (pg)    │
+│      │                                          ▼                       │
+│      │                                       PostgreSQL (:5432)         │
+│      │                                          ▲                       │
+│      │                                          │ ④ SQL queries (pg)    │
+│      │                                          │                       │
+│      ├── ⑤ HTTP POST /orders ──────────────→ Order Service (:4004)      │
+│      │                                          │                       │
+│      │                              ┌───────────┤                       │
+│      │                              │           │                       │
+│      │                   ⑥ SAGA Step 1:         │                       │
+│      │                   HTTP POST              │                       │
+│      │                   /api/warehouse/        │                       │
+│      │                   packages               │                       │
+│      │                              │    ⑦ SAGA Step 2:                 │
+│      │                              │    HTTP POST                      │
+│      │                              │    /api/routes/optimize           │
+│      │                              │           │                       │
+│      │                              │           │  ⑧ SAGA Step 3:       │
+│      │                              │           │  HTTP POST            │
+│      │                              │           │  /soap/submit-order   │
+│      │                              ▼           ▼                       │
+│      ├── ⑨ HTTP /api/routes/* ──→ REST Adapter (:3001)                  │
+│      │                              │                                   │
+│      │                              │ ⑩ AMQP publish → ros_exchange     │
+│      │                              ▼                                   │
+│      │                           RabbitMQ (:5672)                       │
+│      │                              │                                   │
+│      │                              │ ⑪ AMQP consume ← route.* queues  │
+│      │                              ▼                                   │
+│      │                           ROS Worker                             │
+│      │                              │                                   │
+│      │                              │ ⑫ HTTP GET/POST (axios)           │
+│      │                              ▼                                   │
+│      │                           Mock ROS (:4002)                       │
+│      │                                                                  │
+│      ├── ⑬ HTTP /soap/* ────────→ SOAP Adapter (:3002)                  │
+│      │                              │ ⑭ AMQP → cms_exchange             │
+│      │                              ▼                                   │
+│      │                           CMS Worker                             │
+│      │                              │ ⑮ SOAP/XML (node-soap)            │
+│      │                              ▼                                   │
+│      │                           Mock CMS (:4000)                       │
+│      │                                                                  │
+│      └── ⑯ HTTP /api/warehouse/* → TCP Adapter (:3003)                  │
+│                                     │ ⑰ AMQP → wms_exchange             │
+│                                     ▼                                   │
+│                                  WMS Worker                             │
+│                                     │ ⑱ TCP socket (net module)          │
+│                                     ▼                                   │
+│                                  Mock WMS (:4001)                       │
+│                                                                         │
+│   ADMIN TOOLS (not in main flow):                                       │
+│   pgAdmin (:5050) ─── ⑲ TCP (pg protocol) ──→ PostgreSQL (:5432)       │
+│   Browser ─────────── ⑳ HTTP ────────────────→ RabbitMQ UI (:15672)     │
+│                                                                         │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### All 20 Connections Explained
+
+| # | From | To | Protocol | Purpose |
+|---|------|----|----------|---------|
+| ① | React App | API Gateway | HTTP (JWT Bearer) | All frontend API calls |
+| ② | Gateway | Auth Service | HTTP proxy | Login, register, verify, me, logout |
+| ③ | Auth Service | PostgreSQL | SQL (pg lib) | Read/write users, refresh_tokens |
+| ④ | Order Service | PostgreSQL | SQL (pg lib) | Read/write orders |
+| ⑤ | Gateway | Order Service | HTTP proxy | Create/list orders |
+| ⑥ | Order Service | TCP Adapter | HTTP (SAGA Step 1) | Reserve inventory |
+| ⑦ | Order Service | REST Adapter | HTTP (SAGA Step 2) | Schedule delivery |
+| ⑧ | Order Service | SOAP Adapter | HTTP (SAGA Step 3) | Submit to legacy CMS |
+| ⑨ | Gateway | REST Adapter | HTTP proxy | Direct route optimization calls |
+| ⑩ | REST Adapter | RabbitMQ | AMQP publish | Send to ros_exchange |
+| ⑪ | RabbitMQ | ROS Worker | AMQP consume | Worker picks up from queue |
+| ⑫ | ROS Worker | Mock ROS | HTTP (axios) | Call actual REST backend |
+| ⑬ | Gateway | SOAP Adapter | HTTP proxy | SOAP/CMS requests |
+| ⑭ | SOAP Adapter → RabbitMQ → CMS Worker | AMQP | Publish → consume cycle |
+| ⑮ | CMS Worker | Mock CMS | SOAP/XML (node-soap) | Call actual SOAP backend |
+| ⑯ | Gateway | TCP Adapter | HTTP proxy | Warehouse requests |
+| ⑰ | TCP Adapter → RabbitMQ → WMS Worker | AMQP | Publish → consume cycle |
+| ⑱ | WMS Worker | Mock WMS | TCP socket (net) | Call actual TCP backend |
+| ⑲ | pgAdmin | PostgreSQL | TCP (pg protocol) | Admin database access |
+| ⑳ | Browser | RabbitMQ UI | HTTP | Admin queue monitoring |
+
+### Layers & Tiers
+
+**Layers** = *logical separation* (what each part does):
+
+| Layer | Responsibility | Components |
+|-------|---------------|------------|
+| **Presentation** | User interface, user interaction | React Dashboard |
+| **Gateway** | Single entry point, auth, rate limiting, routing | API Gateway |
+| **Business Logic** | Core features, orchestration | Auth Service, Order Service (SAGA) |
+| **Integration** | Protocol translation, message consumers | REST/SOAP/TCP Adapters, Workers |
+| **Message Broker** | Asynchronous decoupling | RabbitMQ (exchanges, queues) |
+| **Data** | Persistent storage | PostgreSQL |
+| **External Systems** | Third-party backends (simulated) | Mock ROS, Mock CMS, Mock WMS |
+
+**Tiers** = *physical separation* (where each part runs):
+
+| Tier | What | Where |
+|------|------|-------|
+| **Tier 1 — Client** | React App | User's browser |
+| **Tier 2 — Server** | Gateway, Auth, Order, Adapters, Workers, RabbitMQ | Node.js processes on backend |
+| **Tier 3 — Data** | PostgreSQL, Mock Services | Docker containers |
+
+> **Why does this matter?**
+> - **Layers** let you change one part without breaking others (e.g., swap PostgreSQL for MongoDB without touching the Auth Service API)
+> - **Tiers** let you scale independently (e.g., deploy the React app on a CDN, the services on a server, and the database on a managed cloud service)
 
 ## Component Design
+
+### 0. Authentication & Storage
+
+#### Auth Service (Port 4005)
+- **Technology**: Express.js, JWT, bcrypt
+- **Database**: PostgreSQL (users, refresh_tokens tables)
+- **Endpoints**:
+  - `POST /auth/register` — Create account
+  - `POST /auth/login` — Login, receive tokens
+  - `POST /auth/refresh` — Refresh access token
+  - `POST /auth/logout` — Invalidate tokens
+  - `GET /auth/me` — Get user profile
+  - `GET /auth/verify` — Token validation (for Gateway)
+  - `GET /auth/users` — Admin: list all users
+- **Security**: bcrypt password hashing, rate limiting, token blacklisting
+
+#### Order Service (Port 4004)
+- **Technology**: Express.js, SAGA orchestrator
+- **Database**: PostgreSQL (orders table with JSONB columns)
+- **Pattern**: SAGA — coordinates Warehouse → Logistics → CMS in sequence
+- **Compensation**: If any step fails, previous steps are undone
+
+#### PostgreSQL Database (Port 5432)
+- **image**: postgres:15-alpine (via Docker)
+- **Tables**: users, orders, refresh_tokens
+- **Connection**: Shared pool via `shared/database/index.js`
+- **Features**: JSONB columns for flexible data, foreign keys, cascade deletes
 
 ### 1. Protocol Adapters
 
@@ -442,29 +581,35 @@ RabbitMQ automatically load-balances messages across multiple worker instances u
 | RabbitMQ | ~10k msg/s | <5ms | Highly concurrent |
 | Workers | Depends on backend | Variable | 1 msg at a time (scalable) |
 
-## Security Considerations
+## Security Features
 
-**Current Implementation (Development):**
-- ⚠️ Hardcoded RabbitMQ credentials
-- ⚠️ No authentication on adapters
-- ⚠️ No TLS/SSL encryption
-- ⚠️ No input validation
+**Implemented:**
+- ✅ JWT authentication (access + refresh tokens)
+- ✅ bcrypt password hashing (10 salt rounds)
+- ✅ API key authentication for internal services
+- ✅ Role-based access control (admin, customer, driver)
+- ✅ Rate limiting (10 login / 100 general per 15 min)
+- ✅ Parameterized SQL queries (SQL injection prevention)
+- ✅ Token blacklisting on logout
+- ✅ CORS configuration
+- ✅ Anti-enumeration (same error for wrong email/password)
 
 **Production Recommendations:**
-- ✅ Environment variables for credentials
-- ✅ OAuth/API keys for adapter authentication
-- ✅ TLS for all communications
-- ✅ Input validation and sanitization
-- ✅ Rate limiting
-- ✅ CORS configuration
+- ⬜ Environment variables for all secrets
+- ⬜ TLS/SSL encryption
+- ⬜ httpOnly cookies for token storage
+- ⬜ Input validation middleware
+- ⬜ HTTPS everywhere
 
 ## Conclusion
 
 This architecture provides:
-- ✅ **Flexibility**: Support for multiple protocols
+- ✅ **Flexibility**: Support for multiple protocols (REST, SOAP, TCP)
+- ✅ **Security**: JWT auth, RBAC, rate limiting, bcrypt
+- ✅ **Persistence**: PostgreSQL with schema auto-creation
 - ✅ **Scalability**: Horizontal scaling of workers
-- ✅ **Reliability**: Message persistence and acknowledgment
+- ✅ **Reliability**: Message persistence, ACID transactions, SAGA pattern
 - ✅ **Maintainability**: Clear separation of concerns
-- ✅ **Testability**: Easy to test individual components
+- ✅ **Testability**: Comprehensive test suites per service
 
-The middleware successfully abstracts protocol complexity and enables seamless integration of heterogeneous systems through a unified message-based architecture.
+The middleware successfully abstracts protocol complexity and enables seamless integration of heterogeneous systems through a unified, authenticated, persistent message-based architecture.
