@@ -38,7 +38,24 @@ async function loadDatabase() {
 const app = express();
 const PORT = 4004;
 const GATEWAY_URL = 'http://localhost:5000';
+const WS_SERVICE_URL = 'http://localhost:4006';
 const API_KEY = 'swift-123-secret';
+
+// 🔌 WebSocket event emitter
+// Calls the WebSocket service's REST API to push real-time updates
+// to connected clients. If the WS service is down, we log and continue
+// (order processing shouldn't fail because of notifications).
+async function emitOrderEvent(orderId, userId, status, sagaStep, message) {
+    try {
+        await axios.post(`${WS_SERVICE_URL}/emit/order-update`, {
+            orderId, userId, status, sagaStep, message
+        });
+        console.log(`   📡 WS Event: ${sagaStep} → ${status}`);
+    } catch (err) {
+        // Don't fail the order if WebSocket is unavailable
+        console.log(`   ⚠️  WS Service unavailable (order continues)`);
+    }
+}
 
 // Middleware
 app.use(cors());
@@ -95,6 +112,9 @@ app.post('/orders', async (req, res) => {
 
     console.log(`\n📦 STARTING SAGA for Order ${orderId}`);
 
+    // 🔌 Emit: Order creation started
+    emitOrderEvent(orderId, userId, 'PENDING', 'CREATED', `Order ${orderId} created, starting processing...`);
+
     // ── INSERT ORDER INTO DATABASE (status: PENDING) ──
     // This creates the order record immediately, then we update it
     // as each SAGA step completes or fails.
@@ -136,6 +156,9 @@ app.post('/orders', async (req, res) => {
         sagaLog.push({ step: 'WAREHOUSE', status: 'COMPLETED', data: warehouseRes.data });
         console.log('✅ Inventory Reserved');
 
+        // 🔌 Emit: Step 1 done
+        emitOrderEvent(orderId, userId, 'PROCESSING', 'WAREHOUSE', 'Inventory reserved successfully');
+
 
         // STEP 2: Schedule Delivery (Logistics Service via REST Adapter)
         console.log('➡️  Step 2: Scheduling Delivery...');
@@ -151,6 +174,9 @@ app.post('/orders', async (req, res) => {
 
         sagaLog.push({ step: 'LOGISTICS', status: 'COMPLETED', data: logisticsRes.data });
         console.log('✅ Delivery Scheduled');
+
+        // 🔌 Emit: Step 2 done
+        emitOrderEvent(orderId, userId, 'PROCESSING', 'LOGISTICS', 'Delivery route scheduled');
 
 
         // STEP 3: Submit Order to Legacy System (CMS Service via SOAP Adapter)
@@ -175,6 +201,9 @@ app.post('/orders', async (req, res) => {
         sagaLog.push({ step: 'LEGACY_CMS', status: 'COMPLETED', data: cmsRes.data });
         console.log('✅ Order Submitted to Legacy CMS');
 
+        // 🔌 Emit: Step 3 done
+        emitOrderEvent(orderId, userId, 'PROCESSING', 'LEGACY_CMS', 'Registered in legacy CMS');
+
 
         // ── SAGA COMPLETE — UPDATE ORDER IN DATABASE ──
         // SQL: UPDATE orders SET status = 'COMPLETED', saga_log = ... WHERE id = ...
@@ -184,6 +213,9 @@ app.post('/orders', async (req, res) => {
         );
 
         console.log(`🎉 SAGA COMPLETED successfully for ${orderId}\n`);
+
+        // 🔌 Emit: Order complete!
+        emitOrderEvent(orderId, userId, 'COMPLETED', 'DONE', `Order ${orderId} completed successfully!`);
 
         res.status(201).json({
             success: true,
@@ -220,6 +252,9 @@ app.post('/orders', async (req, res) => {
             `UPDATE orders SET status = $1, saga_log = $2, updated_at = NOW() WHERE id = $3`,
             ['FAILED', JSON.stringify(sagaLog), orderId]
         );
+
+        // 🔌 Emit: Order failed
+        emitOrderEvent(orderId, userId, 'FAILED', 'COMPENSATION', `Order ${orderId} failed: ${error.message}`);
 
         res.status(500).json({
             success: false,

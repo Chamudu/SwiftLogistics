@@ -54,6 +54,7 @@ cd shared/database && npm install && cd ../..
 # Core services
 cd auth-service && npm install && cd ..
 cd order-service && npm install && cd ..
+cd websocket-service && npm install && cd ..
 cd api-gateway && npm install && cd ..
 cd client-app && npm install && cd ..
 
@@ -102,6 +103,7 @@ cd workers/wms-worker && node index.js
 ```bash
 cd auth-service && npm run dev              # :4005
 cd order-service && node index.js           # :4004
+cd websocket-service && npm run dev         # :4006
 cd api-gateway && npm run dev               # :5000
 ```
 
@@ -116,6 +118,7 @@ cd client-app && npm run dev                # :5173
 |------|-----|-------------|
 | **React App** | http://localhost:5173 | Demo login on screen |
 | **API Gateway** | http://localhost:5000 | — |
+| **WebSocket** | http://localhost:4006/health | — |
 | **RabbitMQ UI** | http://localhost:15672 | admin / admin123 |
 | **pgAdmin** | http://localhost:5050 | admin@swift.com / admin123 |
 
@@ -141,6 +144,7 @@ node test-gateway.js        # API Gateway
 | 4002 | Mock ROS (REST) |
 | 4004 | Order Service (SAGA) |
 | 4005 | Auth Service (JWT) |
+| 4006 | WebSocket Service (Socket.IO) |
 | 5000 | API Gateway |
 | 5050 | pgAdmin (DB UI) |
 | 5173 | React Client |

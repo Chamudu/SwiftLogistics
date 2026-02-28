@@ -107,7 +107,29 @@ A history of what was built in each phase.
 
 ---
 
+## Phase 6: Real-Time WebSocket ✅
+
+**Objective**: Add real-time order tracking via WebSocket (Socket.IO).
+
+### WebSocket Service (Port 4006)
+- Socket.IO server with rooms (per-user, per-role, per-order)
+- REST-to-WebSocket bridge (other services call `/emit/*` to push events)
+- Auto-reconnection, fallback to HTTP polling
+- Health endpoint with connected client tracking
+
+### Order Service Integration
+- Emits WebSocket events after each SAGA step
+- Events: CREATED → WAREHOUSE → LOGISTICS → LEGACY_CMS → COMPLETED
+- Graceful degradation (orders still work if WebSocket is down)
+
+### Client App Integration
+- Socket service auto-connects on login, disconnects on logout
+- Order update subscriptions via `socketService.onOrderUpdate()`
+- Per-order watching via `socketService.watchOrder(orderId)`
+
+---
+
 ## Up Next
 
-- [ ] **WebSocket Server** — Real-time order tracking
 - [ ] **Polish Client App** — Wire all pages to live data
+

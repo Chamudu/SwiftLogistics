@@ -27,50 +27,56 @@ SwiftLogistics is a full-stack distributed middleware system that integrates mul
 ### Diagram 1 — Layered Architecture (Layers & Tiers)
 
 ```
- LAYER                        COMPONENTS                                     TIER
- ─────                        ──────────                                     ────
-
-                           ┌─────────────────────────────────────────┐
- PRESENTATION              │          React Dashboard (:5173)        │      Tier 1
- LAYER                     │     JWT Auth  •  Role-Based Views       │    (Client)
-                           └─────────────────────┬───────────────────┘
-                                                 │ HTTP (fetch)
-                          ┌──────────────────────▼───────────────────┐
- GATEWAY                  │          API GATEWAY (:5000)             │      Tier 2
- LAYER                    │   JWT Auth • Rate Limit • Routing • Logs │    (Server)
-                          └──────────────────────┬───────────────────┘
-                                                 │ HTTP (proxy)
-                    ┌────────────┬───────────────┼───────────┬──────────┐
-                    ▼            ▼               ▼           ▼          ▼
-               ┌───────── ┐   ┌─────────┐    ┌─────────┐┌─────────┐┌─────────┐
- BUSINESS      │  Auth    │   │  Order  │    │  REST   ││  SOAP   ││  TCP    │
- LOGIC         │  Service │   │ Service │    │ Adapter ││ Adapter ││ Adapter │
- LAYER         │  :4005   │   │  :4004  │    │  :3001  ││  :3002  ││  :3003  │
-               └────┬─────┘   └──┬──┬───┘    └────┬────┘└────┬────┘└────┬────┘
-                    │            │  │             │          │          │
-                    │  ┌─────────┘  │             └───────── ┼──────────┘
-                    │  │            │ SAGA (HTTP)            │ AMQP
-                    ▼  ▼            └──────────────┐         │
-              ┌────────────┐                       │         ▼
- DATA         │ PostgreSQL │               ┌───────┴───────────────────┐
- LAYER        │   :5432    │    MESSAGE    │       RabbitMQ (:5672)    │    Tier 2
-              └────────────┘    BROKER     │  3 Exchanges • 11 Queues  │  (Server)
-                                LAYER      └─────┬─────────┬─────────┬─┘
-                                                 │         │         │ AMQP
-                                            ┌────▼───┐┌────▼───┐┌────▼───┐
- INTEGRATION                                │  ROS   ││  CMS   ││  WMS   │
- LAYER                                      │ Worker ││ Worker ││ Worker │
-                                            └────┬───┘└────┬───┘└────┬───┘
-                                                 │         │         │
-                                              HTTP(REST) SOAP(XML) TCP(Binary)
-                                                 │         │         │
-                                            ┌────▼───┐┌────▼───┐┌────▼───┐
- EXTERNAL                                   │Mock ROS││Mock CMS││Mock WMS│   Tier 3
- SYSTEMS                                    │ :4002  ││ :4000  ││ :4001  │  (Data /
-                                            └────────┘└────────┘└────────┘  External)
-
- ADMIN TOOLS:   pgAdmin (:5050) ──── TCP ────→ PostgreSQL (:5432)
-                RabbitMQ UI (:15672)              (web dashboards)
+  LAYER              COMPONENTS                                               TIER
+  ─────              ──────────                                               ────
+ ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
+                     ┌───────────────────────────────────────────────┐
+  PRESENTATION       │           React Dashboard (:5173)             │         Tier 1
+                     │       JWT Auth  •  Role-Based Views           │       (Client)
+                     │       Socket.IO client for live updates       │
+                     └────────────────────┬──────────────────────────┘
+    ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│┄┄┄┄┄HTTP + WS┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
+                     ┌────────────────────▼──────────────────────────┐
+  GATEWAY            │           API GATEWAY (:5000)                 │         Tier 2
+                     │    JWT Auth • Rate Limit • Routing • Logs     │       (Server)
+                     └──┬────────┬────────┬────────┬────────┬─────── ┘
+   ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│┄┄┄┄┄┄┄┄│┄┄┄┄┄┄┄┄│┄HTTP┄┄┄│┄┄┄┄┄┄┄┄│┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
+                        ▼        ▼        ▼        ▼        ▼
+                   ┌────────┐┌────────┐┌────────┐┌────────┐┌────────┐ ┌────────┐
+  BUSINESS         │  Auth  ││ Order  ││  REST  ││  SOAP  ││  TCP   │ │  WS    │
+  LOGIC            │Service ││Service ││Adapter ││Adapter ││Adapter │ │Service │
+                   │ :4005  ││ :4004  ││ :3001  ││ :3002  ││ :3003  │ │ :4006  │
+                   └───┬────┘└─┬──┬───┘└───┬────┘└───┬────┘└───┬────┘ └───▲────┘
+                       │       │  │        │         │         │          │
+                       │       │  │SAGA    └─────────┼─────────┘     REST POST
+                       │       │  │(HTTP)            │          /emit/order-update
+                       │       │  └──────────────────┤                   │
+                       │       │                     │            ┌──────┘
+   ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│┄┄┄┄┄┄┄│┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄ ┄│┄AMQP┄┄┄┄┄ ┄│┄┄┄┄┄┄┄┄┄┄┄┄┄
+                       │       │                     ▼            │
+  MESSAGE              │       │     ┌───────────────────────────────────┐
+  BROKER               │       │     │         RabbitMQ (:5672)          │     Tier 2
+                       │       │     │    3 Exchanges  •  11 Queues      │   (Server)
+                       │       │     └────┬──────────┬──────────┬────────┘
+ ┄┄┄  ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│┄┄┄┄┄┄┄│┄┄┄┄┄┄┄┄┄│┄AMQP┄┄┄┄┄│┄┄┄┄┄┄┄┄┄┄│┄┄┄┄┄┄┄┄┄┄┄┄┄┄
+                       │       │         ▼           ▼           ▼
+  INTEGRATION          │       │    ┌────────┐  ┌────────┐  ┌────────┐
+  (Workers)            │       │    │  ROS   │  │  CMS   │  │  WMS   │
+                       │       │    │ Worker │  │ Worker │  │ Worker │
+                       │       │    └───┬────┘  └───┬────┘  └───┬────┘
+   ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│┄┄┄┄┄┄┄│┄┄┄┄┄┄┄ │┄REST┄┄┄┄┄┄│┄SOAP┄┄┄┄ ┄│┄TCP┄┄┄┄┄┄┄┄┄┄┄
+                       ▼       ▼        ▼           ▼           ▼
+                   ┌────────────────┐┌────────┐ ┌────────┐ ┌────────┐
+  DATA /           │  PostgreSQL    ││Mock ROS│ │Mock CMS│ │Mock WMS│     Tier 3
+  EXTERNAL         │    :5432       ││ :4002  │ │ :4000  │ │ :4001  │   (Data /
+  SYSTEMS          │                ││  REST  │ │  SOAP  │ │  TCP   │  External)
+                   │ users│orders│  ││        │ │        │ │        │
+                   │ refresh_tokens ││        │ │        │ │        │
+                   └───────┬────────┘└────────┘ └────────┘ └────────┘
+   ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
+                   ┌───────▼────────┐
+  ADMIN            │  pgAdmin :5050 │   Standalone Docker container
+  TOOLS            └────────────────┘   RabbitMQ UI :15672
 ```
 
 ### Diagram 2 — Connection Map (Who Talks to Whom)
@@ -81,7 +87,11 @@ Every arrow below is a real network connection in the system:
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                                                                         │
 │   React App (:5173)                                                     │
-│      │                                                                  │
+│      │  ╲                                                               │
+│      │   ╲ ㉑ WebSocket (Socket.IO) ────→ WebSocket Service (:4006)     │
+│      │    ╲   (real-time order updates)       ▲                         │
+│      │                                        │ ㉒ REST POST            │
+│      │                                        │ /emit/order-update      │
 │      │ ① HTTP GET/POST (JWT Bearer token in Authorization header)       │
 │      ▼                                                                  │
 │   API Gateway (:5000)                                                   │
@@ -116,7 +126,7 @@ Every arrow below is a real network connection in the system:
 │      │                              ▼                                   │
 │      │                           RabbitMQ (:5672)                       │
 │      │                              │                                   │
-│      │                              │ ⑪ AMQP consume ← route.* queues  │
+│      │                              │ ⑪ AMQP consume ← route.* queues   │
 │      │                              ▼                                   │
 │      │                           ROS Worker                             │
 │      │                              │                                   │
@@ -136,18 +146,18 @@ Every arrow below is a real network connection in the system:
 │                                     │ ⑰ AMQP → wms_exchange             │
 │                                     ▼                                   │
 │                                  WMS Worker                             │
-│                                     │ ⑱ TCP socket (net module)          │
+│                                     │ ⑱ TCP socket (net module)         │
 │                                     ▼                                   │
 │                                  Mock WMS (:4001)                       │
 │                                                                         │
 │   ADMIN TOOLS (not in main flow):                                       │
-│   pgAdmin (:5050) ─── ⑲ TCP (pg protocol) ──→ PostgreSQL (:5432)       │
+│   pgAdmin (:5050) ─── ⑲ TCP (pg protocol) ──→ PostgreSQL (:5432)        │
 │   Browser ─────────── ⑳ HTTP ────────────────→ RabbitMQ UI (:15672)     │
 │                                                                         │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### All 20 Connections Explained
+### All 22 Connections Explained
 
 | # | From | To | Protocol | Purpose |
 |---|------|----|----------|---------|
@@ -171,6 +181,8 @@ Every arrow below is a real network connection in the system:
 | ⑱ | WMS Worker | Mock WMS | TCP socket (net) | Call actual TCP backend |
 | ⑲ | pgAdmin | PostgreSQL | TCP (pg protocol) | Admin database access |
 | ⑳ | Browser | RabbitMQ UI | HTTP | Admin queue monitoring |
+| ㉑ | React App | WebSocket Service | WebSocket (Socket.IO) | Real-time order updates, notifications |
+| ㉒ | Order Service | WebSocket Service | HTTP POST | Emit SAGA step events via REST bridge |
 
 ### Layers & Tiers
 
@@ -181,6 +193,7 @@ Every arrow below is a real network connection in the system:
 | **Presentation** | User interface, user interaction | React Dashboard |
 | **Gateway** | Single entry point, auth, rate limiting, routing | API Gateway |
 | **Business Logic** | Core features, orchestration | Auth Service, Order Service (SAGA) |
+| **Real-Time** | Live event broadcasting | WebSocket Service (Socket.IO) |
 | **Integration** | Protocol translation, message consumers | REST/SOAP/TCP Adapters, Workers |
 | **Message Broker** | Asynchronous decoupling | RabbitMQ (exchanges, queues) |
 | **Data** | Persistent storage | PostgreSQL |

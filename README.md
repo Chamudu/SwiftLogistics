@@ -6,12 +6,13 @@ A full-stack middleware architecture integrating heterogeneous systems (CMS, ROS
 
 This project demonstrates a complete middleware solution:
 
-- **Microservices Architecture** — 13+ independent services
+- **Microservices Architecture** — 14+ independent services
 - **Protocol Adapters** — REST, SOAP, and TCP/IP integration
 - **Message Broker** — RabbitMQ for async communication
 - **SAGA Pattern** — Distributed transaction orchestration
 - **JWT Authentication** — Secure login with role-based access
 - **PostgreSQL Database** — Persistent data storage
+- **WebSocket** — Real-time order tracking via Socket.IO
 - **React Dashboard** — Role-based UI with dark theme
 
 ## 📁 Project Structure
@@ -45,7 +46,10 @@ SwiftLogistics/
 │   └── middleware.js           # requireAuth, requireRole
 │
 ├── order-service/               # SAGA orchestrator               :4004
-│   └── index.js                # Multi-step order creation
+│   └── index.js                # Multi-step order creation + WS events
+│
+├── websocket-service/           # Real-time updates (Socket.IO)   :4006
+│   └── index.js                # Rooms, REST bridge, notifications
 │
 ├── shared/                      # Shared utilities
 │   └── database/               # PostgreSQL connection pool
@@ -54,8 +58,8 @@ SwiftLogistics/
 ├── client-app/                  # React frontend (Vite)           :5173
 │   ├── src/
 │   │   ├── pages/              # Login, Dashboard, Orders, etc.
-│   │   ├── context/            # AuthContext (JWT state)
-│   │   ├── services/           # API client (auto token attach)
+│   │   ├── context/            # AuthContext (JWT state + WebSocket)
+│   │   ├── services/           # API client, WebSocket client
 │   │   └── components/         # Layout, Sidebar, etc.
 │   └── ...
 │
@@ -93,6 +97,7 @@ This starts **3 containers**:
 cd shared/database && npm install && cd ../..
 cd auth-service && npm install && cd ..
 cd order-service && npm install && cd ..
+cd websocket-service && npm install && cd ..
 cd api-gateway && npm install && cd ..
 cd client-app && npm install && cd ..
 
@@ -131,6 +136,7 @@ cd workers/wms-worker && node index.js
 # Core services
 cd auth-service && npm run dev
 cd order-service && node index.js
+cd websocket-service && npm run dev
 cd api-gateway && npm run dev
 
 # Frontend
@@ -211,6 +217,7 @@ node test-gateway.js        # Gateway tests
 | 4002 | Mock ROS | REST |
 | 4004 | Order Service (SAGA) | HTTP |
 | 4005 | Auth Service (JWT) | HTTP |
+| 4006 | WebSocket Service | WS (Socket.IO) |
 | 5000 | API Gateway | HTTP |
 | 5173 | React Client | HTTP |
 | 5432 | PostgreSQL | PostgreSQL |
@@ -227,7 +234,7 @@ node test-gateway.js        # Gateway tests
 - [x] **Auth Service** — JWT login, registration, RBAC, refresh tokens
 - [x] **Database** — PostgreSQL, connection pooling, schema auto-creation
 - [x] **Client App** — React dashboard, real login, role-based views
-- [ ] **WebSocket Server** — Real-time order tracking
+- [x] **WebSocket Server** — Real-time order tracking via Socket.IO
 - [ ] **Polish** — Wire all pages to live data
 
 ## 📚 Documentation
@@ -244,9 +251,10 @@ node test-gateway.js        # Gateway tests
 
 | Layer | Technology |
 |-------|-----------|
-| **Frontend** | React 18, Vite, Lucide Icons |
+| **Frontend** | React 18, Vite, Lucide Icons, Socket.IO Client |
 | **API Gateway** | Express.js, Winston logging |
 | **Auth** | JWT, bcrypt, express-rate-limit |
+| **Real-Time** | Socket.IO (WebSocket + fallback) |
 | **Database** | PostgreSQL 15, node-postgres (pg) |
 | **Message Broker** | RabbitMQ 3.12, amqplib |
 | **Protocols** | REST, SOAP (soap), TCP (net) |

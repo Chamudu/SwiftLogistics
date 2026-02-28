@@ -7,6 +7,7 @@
 - [REST API (Routes)](#rest-api-routes)
 - [SOAP API (Client Management)](#soap-api-client-management)
 - [TCP API (Warehouse)](#tcp-api-warehouse)
+- [WebSocket API (Real-Time)](#websocket-api-real-time)
 - [System Endpoints](#system-endpoints)
 - [Error Handling](#error-handling)
 
@@ -539,6 +540,87 @@ Triggers the SAGA orchestration (Warehouse → Logistics → CMS).
   "message": "Human-readable explanation"
 }
 ```
+
+---
+
+## WebSocket API (Real-Time)
+
+**URL**: `ws://localhost:4006` (Socket.IO)
+
+The WebSocket service provides real-time updates. It is a **separate service** (not behind the gateway).
+
+### Client Connection (Socket.IO)
+
+```javascript
+import { io } from 'socket.io-client';
+
+const socket = io('http://localhost:4006', {
+    transports: ['websocket', 'polling']
+});
+
+// Authenticate after connecting
+socket.emit('authenticate', {
+    userId: 'USR-001',
+    role: 'admin',
+    name: 'Sarah'
+});
+
+// Listen for order updates
+socket.on('order:updated', (data) => {
+    console.log(data);
+    // { orderId, status, sagaStep, message, timestamp }
+});
+
+// Watch a specific order
+socket.emit('watch:order', 'ORD-123');
+```
+
+### Events (Client → Server)
+
+| Event | Payload | Purpose |
+|-------|---------|--------|
+| `authenticate` | `{ userId, role, name }` | Join user/role rooms |
+| `watch:order` | `"ORD-123"` | Subscribe to order updates |
+| `unwatch:order` | `"ORD-123"` | Unsubscribe |
+
+### Events (Server → Client)
+
+| Event | Payload | When |
+|-------|---------|------|
+| `authenticated` | `{ message, rooms }` | After auth |
+| `order:updated` | `{ orderId, status, sagaStep, message, timestamp }` | SAGA step completes |
+| `notification` | `{ type, title, message, timestamp }` | System alert |
+
+### REST Bridge Endpoints
+
+Other services use these REST endpoints to trigger WebSocket broadcasts:
+
+#### `POST http://localhost:4006/emit/order-update`
+
+```json
+{
+    "orderId": "ORD-123",
+    "userId": "USR-001",
+    "status": "PROCESSING",
+    "sagaStep": "WAREHOUSE",
+    "message": "Inventory reserved"
+}
+```
+
+#### `POST http://localhost:4006/emit/notification`
+
+```json
+{
+    "type": "info",
+    "title": "System Update",
+    "message": "Maintenance at 2AM",
+    "targetRole": "admin"
+}
+```
+
+#### `GET http://localhost:4006/health`
+
+Returns service status and connected clients.
 
 ---
 

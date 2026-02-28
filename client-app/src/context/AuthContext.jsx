@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { api } from '../services/api';
+import { socketService } from '../services/socket';
 
 const AuthContext = createContext(null);
 
@@ -16,6 +17,8 @@ export const AuthProvider = ({ children }) => {
                 try {
                     const data = await api.getProfile();
                     setUser(data.user);
+                    // 🔌 Auto-connect WebSocket on session restore
+                    socketService.connect(data.user);
                 } catch {
                     // Token invalid or expired — clear everything
                     api.clearTokens();
@@ -45,6 +48,8 @@ export const AuthProvider = ({ children }) => {
         const data = await api.login(email, password);
         setUser(data.user);
         localStorage.setItem('swift_user', JSON.stringify(data.user));
+        // 🔌 Connect to WebSocket after successful login
+        socketService.connect(data.user);
         return data;
     };
 
@@ -65,6 +70,8 @@ export const AuthProvider = ({ children }) => {
 
     // ── LOGOUT ──
     const logout = async () => {
+        // 🔌 Disconnect WebSocket before clearing session
+        socketService.disconnect();
         await api.logout();
         setUser(null);
         localStorage.removeItem('swift_user');
