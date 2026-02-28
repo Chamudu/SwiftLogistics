@@ -37,7 +37,7 @@ class SocketService {
      */
     connect(user) {
         // Don't reconnect if already connected
-        if (this.socket?.connected) return;
+        if (this.socket?.connected || this.socket) return;
 
         this.socket = io(WS_URL, {
             transports: ['websocket', 'polling'],

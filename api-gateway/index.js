@@ -481,17 +481,38 @@ function callTCP(message) {
         socket.write(len);
         socket.write(Buffer.from(payload));
 
-        socket.on('data', (data) => {
-            // Simple parsing: assuming response fits in one chunk for this demo
-            const body = data.subarray(4).toString();
-            try {
-                resolve(JSON.parse(body));
-                socket.end();
-            } catch (e) { reject(e); }
+        let buffer = Buffer.alloc(0);
+        let expectedLength = null;
+
+        socket.on('data', (chunk) => {
+            // Properly buffer the incoming chunks (TCP is a stream!)
+            buffer = Buffer.concat([buffer, chunk]);
+
+            if (expectedLength === null && buffer.length >= 4) {
+                expectedLength = buffer.readUInt32BE(0);
+                buffer = buffer.subarray(4);
+            }
+
+            if (expectedLength !== null && buffer.length >= expectedLength) {
+                const body = buffer.subarray(0, expectedLength).toString('utf8');
+                try {
+                    resolve(JSON.parse(body));
+                    socket.end();
+                } catch (e) {
+                    reject(e);
+                    socket.end();
+                }
+            }
         });
 
-        socket.on('error', reject);
-        socket.setTimeout(2000, () => reject(new Error('Timeout')));
+        socket.on('error', (err) => {
+            reject(err);
+        });
+
+        socket.setTimeout(2000, () => {
+            reject(new Error('Timeout'));
+            socket.end();
+        });
     });
 }
 
