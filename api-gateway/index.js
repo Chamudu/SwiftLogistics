@@ -1,10 +1,12 @@
 /**
  * SwiftLogistics API Gateway
  * 
- * PHASE 3 - Part 2: Monitoring & Observability
+ * PHASE 3 - Monitoring, Security & Auth
  * - Structured Logging (Winston)
  * - Performance Metrics (Latency)
  * - Request Tracing
+ * - 🆕 JWT Authentication (replaces API-key-only auth)
+ * - 🆕 Auth Service proxy (/auth/* → :4005)
  */
 
 import express from 'express';
@@ -30,7 +32,8 @@ const SERVICES = {
     REST_ADAPTER: 'http://localhost:3001',
     SOAP_ADAPTER: 'http://localhost:3002',
     TCP_ADAPTER: 'http://localhost:3003',
-    ORDER_SERVICE: 'http://localhost:4004' // Configured for Order Service
+    ORDER_SERVICE: 'http://localhost:4004',
+    AUTH_SERVICE: 'http://localhost:4005'   // 🆕 JWT Auth Service
 };
 
 // ==========================================
@@ -46,7 +49,8 @@ let metrics = {
         rest: { count: 0, totalLatency: 0 },
         order: { count: 0, totalLatency: 0 },
         soap: { count: 0, totalLatency: 0 },
-        tcp: { count: 0, totalLatency: 0 }
+        tcp: { count: 0, totalLatency: 0 },
+        auth: { count: 0, totalLatency: 0 }  // 🆕
     },
     recentLogs: [] // Store last 50 logs for dashboard
 };
@@ -101,7 +105,7 @@ app.use((req, res, next) => {
 });
 
 // ==========================================
-// 🛡️ SECURITY MIDDLEWARE (Phase 3.3)
+// 🛡️ SECURITY MIDDLEWARE (Phase 3.3 + JWT Upgrade)
 // ==========================================
 
 import rateLimit from 'express-rate-limit';
@@ -110,8 +114,8 @@ import rateLimit from 'express-rate-limit';
 const limiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 100, // Limit each IP to 100 requests per windowMs
-    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
-    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+    standardHeaders: true,
+    legacyHeaders: false,
     handler: (req, res) => {
         logger.warn('Rate Limit Exceeded', { ip: req.ip });
         res.status(429).json({
@@ -122,35 +126,90 @@ const limiter = rateLimit({
     }
 });
 
-// Apply rate limiting to all requests
 app.use(limiter);
 
-// 2. API Key Authentication
+// 2. 🆕 DUAL AUTHENTICATION: JWT Tokens + API Keys
+//
+// WHY DUAL AUTH?
+// ==============
+// - Frontend (React app) → uses JWT Bearer tokens (from Auth Service)
+// - Internal services (order-service, workers) → still use API keys
+// - This keeps backward compatibility while enabling real user auth
+//
+// FLOW:
+// 1. Check if route is public (skip auth)       → next()
+// 2. Check for "Authorization: Bearer <jwt>"    → verify with Auth Service
+// 3. Check for "x-api-key" header               → check against allowed keys
+// 4. Neither found                              → 401 Unauthorized
+
+// API Keys still needed for internal service-to-service communication
 const VALID_API_KEYS = new Set([
-    'swift-123-secret',  // Client A
-    'logistic-999-key',  // Client B
+    'swift-123-secret',  // Order Service
+    'logistic-999-key',  // Internal Service B
     'test-key-001'       // Test Suite
 ]);
 
-const authenticate = (req, res, next) => {
-    // Skip auth for System endpoints (Health/Metrics) so dashboard still works
-    if (req.path === '/health' || req.path === '/metrics') {
+// Routes that DON'T require authentication
+const PUBLIC_PATHS = [
+    '/health',
+    '/metrics',
+    '/auth/login',
+    '/auth/register',
+    '/auth/refresh'
+];
+
+const authenticate = async (req, res, next) => {
+    // ── STEP 1: Skip auth for public routes ──
+    if (PUBLIC_PATHS.some(p => req.path === p || req.path.startsWith(p + '/'))) {
         return next();
     }
 
-    const apiKey = req.get('x-api-key');
+    // Also skip auth for the root info endpoint
+    if (req.path === '/') return next();
 
-    if (!apiKey) {
-        logger.warn('Missing API Key', { ip: req.ip, path: req.path });
-        return res.status(401).json({
-            success: false,
-            error: 'Unauthorized',
-            message: 'Missing x-api-key header'
-        });
+    // ── STEP 2: Try JWT Bearer token ──
+    const authHeader = req.get('Authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        try {
+            // Ask the Auth Service to verify the token
+            const verifyResponse = await fetch(`${SERVICES.AUTH_SERVICE}/auth/verify`, {
+                headers: { 'Authorization': authHeader }
+            });
+
+            if (verifyResponse.ok) {
+                const verifyData = await verifyResponse.json();
+                // Attach user info to request (available in route handlers)
+                req.user = verifyData.user;
+                req.authMethod = 'jwt';
+                return next();
+            }
+
+            // Token invalid or expired
+            const errorData = await verifyResponse.json().catch(() => ({}));
+            logger.warn('JWT verification failed', { ip: req.ip, path: req.path, error: errorData.error });
+            return res.status(401).json({
+                success: false,
+                error: errorData.error || 'Invalid token',
+                message: errorData.message || 'Your authentication token is invalid or expired',
+                code: errorData.code || 'TOKEN_INVALID'
+            });
+        } catch (error) {
+            // Auth service might be down — log but don't crash
+            logger.error('Auth Service unreachable during JWT verify', { error: error.message });
+            // Fall through to API key check as backup
+        }
     }
 
-    if (!VALID_API_KEYS.has(apiKey)) {
-        logger.warn('Invalid API Key', { ip: req.ip, apiKey, path: req.path });
+    // ── STEP 3: Try API Key (backward compatibility for internal services) ──
+    const apiKey = req.get('x-api-key');
+    if (apiKey && VALID_API_KEYS.has(apiKey)) {
+        req.authMethod = 'api-key';
+        return next();
+    }
+
+    // ── STEP 4: No valid auth found ──
+    if (apiKey) {
+        logger.warn('Invalid API Key', { ip: req.ip, path: req.path });
         return res.status(403).json({
             success: false,
             error: 'Forbidden',
@@ -158,7 +217,12 @@ const authenticate = (req, res, next) => {
         });
     }
 
-    next();
+    logger.warn('No authentication provided', { ip: req.ip, path: req.path });
+    return res.status(401).json({
+        success: false,
+        error: 'Unauthorized',
+        message: 'Please provide a Bearer token or x-api-key header'
+    });
 };
 
 app.use(authenticate);
@@ -178,7 +242,8 @@ app.get('/health', async (req, res) => {
             restAdapter: 'unknown',
             soapAdapter: 'unknown',
             tcpAdapter: 'unknown',
-            orderService: 'unknown'
+            orderService: 'unknown',
+            authService: 'unknown'  // 🆕
         }
     };
 
@@ -209,6 +274,12 @@ app.get('/health', async (req, res) => {
     }
 
     health.services.tcpAdapter = 'assumed-healthy'; // TCP check requires net socket
+
+    // 🆕 Check Auth Service
+    try {
+        const authResponse = await fetch(`${SERVICES.AUTH_SERVICE}/health`, { timeout: 1000 });
+        health.services.authService = authResponse.ok ? 'healthy' : 'degraded';
+    } catch (e) { health.services.authService = 'down'; }
 
     // Determine overall status
     if (Object.values(health.services).includes('down')) health.status = 'unhealthy';
@@ -244,7 +315,8 @@ app.get('/metrics', (req, res) => {
             rest: metrics.protocols.rest.count,
             soap: metrics.protocols.soap.count,
             tcp: metrics.protocols.tcp.count,
-            order: metrics.protocols.order ? metrics.protocols.order.count : 0
+            order: metrics.protocols.order ? metrics.protocols.order.count : 0,
+            auth: metrics.protocols.auth ? metrics.protocols.auth.count : 0   // 🆕
         },
         logs: metrics.recentLogs
     };
@@ -265,6 +337,45 @@ const handleError = (res, protocol, error) => {
         message: error.message
     });
 };
+
+// --- 🆕 AUTH SERVICE ROUTES ---
+// Proxy all /auth/* requests to the Auth Service
+// This lets the frontend talk to one URL (gateway:5000)
+// instead of knowing about the auth service directly.
+
+app.all('/auth/*', async (req, res) => {
+    const start = Date.now();
+    try {
+        const url = `${SERVICES.AUTH_SERVICE}${req.originalUrl}`;
+
+        const fetchOptions = {
+            method: req.method,
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        };
+
+        // Forward the Authorization header if present
+        if (req.get('Authorization')) {
+            fetchOptions.headers['Authorization'] = req.get('Authorization');
+        }
+
+        // Forward request body for POST/PUT
+        if (['POST', 'PUT'].includes(req.method) && req.body) {
+            fetchOptions.body = JSON.stringify(req.body);
+        }
+
+        const response = await fetch(url, fetchOptions);
+        const data = await response.json();
+
+        trackRequest('auth', Date.now() - start, response.ok, req.path);
+        res.status(response.status).json(data);
+
+    } catch (error) {
+        trackRequest('auth', Date.now() - start, false, req.path);
+        handleError(res, 'AUTH', error);
+    }
+});
 
 // --- REST ROUTES ---
 
@@ -473,10 +584,11 @@ app.use('*', (req, res) => {
         error: 'Endpoint not found',
         message: `The requested endpoint ${req.originalUrl} does not exist`,
         availableEndpoints: {
+            auth: ['POST /auth/login', 'POST /auth/register', 'POST /auth/refresh', 'GET /auth/me', 'POST /auth/logout'],
             orders: ['GET /orders', 'POST /orders'],
             rest: ['POST /api/routes/optimize', 'GET /api/routes/:routeId'],
             soap: ['POST /soap', 'GET /soap/wsdl'],
-            warehouse: ['POST /api/warehouse/packages', 'GET /api/warehouse/inventory'], // Fixed Typo POSt -> POST
+            warehouse: ['POST /api/warehouse/packages', 'GET /api/warehouse/inventory'],
             system: ['GET /health', 'GET /metrics']
         }
     });
@@ -488,8 +600,9 @@ app.listen(PORT, () => {
     logger.info('API Gateway started', { port: PORT, env: 'development' });
     console.log(`
 ╔════════════════════════════════════════════════╗
-║   🚀 API GATEWAY MONITORING ACTIVATED          ║
+║   🚀 API GATEWAY - JWT AUTH ENABLED            ║
 ╠════════════════════════════════════════════════╣
+║   🔐 Auth:    /auth/login, /auth/register      ║
 ║   📊 Metrics: http://localhost:${PORT}/metrics      ║
 ║   🩺 Health:  http://localhost:${PORT}/health       ║
 ║   📝 Logs:    gateway.log                      ║
