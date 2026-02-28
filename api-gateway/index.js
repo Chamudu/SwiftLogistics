@@ -261,15 +261,14 @@ app.get('/health', async (req, res) => {
 
     // Check Order Service
     try {
-        // Simple ping if Order Service doesn't have explicit health check yet
-        // A connection refused would throw, a 404 is fine (means server is up)
+        // Simple ping using GET so we don't accidentally create an order
         await fetch(`${SERVICES.ORDER_SERVICE}/orders`, {
-            method: 'POST', body: '{}', headers: { 'Content-Type': 'application/json' }, timeout: 1000
+            method: 'GET', headers: { 'Content-Type': 'application/json' }, timeout: 1000
         });
         health.services.orderService = 'healthy';
     } catch (e) {
-        // 404/400 is fine, connection refused is not
-        if (e.code === 'ECONNREFUSED') health.services.orderService = 'down';
+        // 404/400/500 is fine, connection refused is not
+        if (e.code === 'ECONNREFUSED' || e.cause?.code === 'ECONNREFUSED') health.services.orderService = 'down';
         else health.services.orderService = 'healthy';
     }
 

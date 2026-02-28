@@ -1,68 +1,61 @@
 /**
- * 👥 User Store (In-Memory Database)
+ * 👥 User Store (PostgreSQL Version)
  * 
- * WHAT THIS FILE DOES:
- * ====================
- * Simulates a database for storing users. In a real application, 
- * this would be replaced with PostgreSQL, MongoDB, etc.
+ * WHAT CHANGED:
+ * =============
+ * Before: Users stored in a JavaScript Map() — lost on restart
+ * After:  Users stored in PostgreSQL — persists forever!
  * 
- * WHY IN-MEMORY?
- * ==============
- * - No database setup required (focus on learning auth patterns)
- * - Same interface as a real DB (easy to swap later)
- * - Pre-seeded with demo users so you can test immediately
+ * THE INTERFACE STAYS THE SAME:
+ * =============================
+ * We kept the same function names (findUserByEmail, createUser, etc.)
+ * so the rest of the auth service doesn't need to change at all.
+ * This is the "Repository Pattern" — the data access layer is swappable.
  * 
- * WHAT WE STORE FOR EACH USER:
- * ============================
- * {
- *   id: "USR-001",           // Unique identifier
- *   name: "Sarah Chen",       // Display name
- *   email: "sarah@swift...",  // Login credential (unique)
- *   password: "$2b$10$...",   // HASHED password (never plain text!)
- *   role: "admin",            // Permission level
- *   title: "Operations Mgr",  // Job title / description
- *   avatar: "SC",             // Initials for avatar
- *   createdAt: "2024-...",    // When the account was created
- * }
+ * WHAT'S DIFFERENT UNDER THE HOOD:
+ * ================================
+ * - findUserByEmail()  →  was: users.get(email)  →  now: SELECT * FROM users WHERE email = $1
+ * - createUser()       →  was: users.set(...)     →  now: INSERT INTO users VALUES (...)
+ * - All functions are now async (database queries are asynchronous)
  * 
- * ⚠️ DATA RESETS ON SERVER RESTART (it's in-memory, not persistent)
+ * SQL QUERIES USED:
+ * =================
+ * - SELECT * FROM users WHERE email = $1     → Find by email
+ * - SELECT * FROM users WHERE id = $1        → Find by ID
+ * - INSERT INTO users (...) VALUES (...)     → Create user
+ * - SELECT EXISTS(SELECT 1 FROM users ...)   → Check if email exists
+ * - SELECT * FROM users ORDER BY created_at  → List all users
  */
 
 import { v4 as uuidv4 } from 'uuid';
 import { hashPassword } from './password-utils.js';
-
-// ==========================================
-// 💾 IN-MEMORY USER DATABASE
-// ==========================================
-
-// This Map acts as our "database table"
-// Key = email (for fast lookups during login)
-const users = new Map();
-
-// Secondary index: userId → user (for lookups by ID)
-const usersById = new Map();
+import { db, initializeDatabase } from '../shared/database/index.js';
 
 // ==========================================
 // 🌱 SEED DATA (Pre-created Demo Users)
 // ==========================================
 
 /**
- * Initialize the store with demo users
+ * Initialize the database and seed demo users if they don't exist.
  * 
- * These match the roles in your Login.jsx:
- * - Admin (Operations Manager)
- * - Customer (Business Client)
- * - Driver (Delivery Driver)
- * 
- * All demo passwords are: "password123"
+ * "IF NOT EXISTS" pattern:
+ * We check before inserting so we don't create duplicates
+ * when the server restarts.
  */
 export async function seedUsers() {
+    // First, initialize the database tables
+    const dbReady = await initializeDatabase();
+    if (!dbReady) {
+        console.error('⚠️  Database not available — falling back would be needed in production');
+        throw new Error('Database connection failed');
+    }
+
     const demoUsers = [
         {
             id: 'USR-001',
             name: 'Sarah Chen',
             email: 'sarah@swiftlogistics.com',
-            password: 'password123',  // Will be hashed below!
+            password: 'password123',
             role: 'admin',
             title: 'Operations Manager',
             avatar: 'SC'
@@ -90,22 +83,30 @@ export async function seedUsers() {
     console.log('🌱 Seeding demo users...');
 
     for (const userData of demoUsers) {
-        // Hash the password before storing (NEVER store plain text!)
-        const hashedPassword = await hashPassword(userData.password);
+        // Check if user already exists (don't create duplicates!)
+        const exists = await emailExists(userData.email);
 
-        const user = {
-            ...userData,
-            password: hashedPassword,  // Store the HASH, not "password123"
-            createdAt: new Date().toISOString()
-        };
+        if (!exists) {
+            // Hash the password before storing
+            const hashedPassword = await hashPassword(userData.password);
 
-        users.set(user.email, user);
-        usersById.set(user.id, user);
+            // INSERT INTO users — this is raw SQL!
+            // $1, $2, $3... are parameterized placeholders (safe from SQL injection)
+            await db.query(
+                `INSERT INTO users (id, name, email, password, role, title, avatar)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                [userData.id, userData.name, userData.email, hashedPassword, userData.role, userData.title, userData.avatar]
+            );
 
-        console.log(`   ✅ ${user.name} (${user.role}) — ${user.email}`);
+            console.log(`   ✅ ${userData.name} (${userData.role}) — ${userData.email}`);
+        } else {
+            console.log(`   ⏩ ${userData.name} (${userData.role}) — already exists`);
+        }
     }
 
-    console.log(`🌱 Seeded ${demoUsers.length} demo users\n`);
+    // Count total users in database
+    const { rows } = await db.query('SELECT COUNT(*) FROM users');
+    console.log(`🌱 Database has ${rows[0].count} users total\n`);
 }
 
 // ==========================================
@@ -114,85 +115,97 @@ export async function seedUsers() {
 
 /**
  * Find a user by their email address
- * Used during LOGIN to find the account
  * 
- * @param {string} email - The email to search for
- * @returns {Object|null} - The user object, or null if not found
+ * SQL: SELECT * FROM users WHERE email = $1
+ * 
+ * The query returns { rows: [...], rowCount: N }
+ * rows[0] is the first (and should be only) match
  */
-export function findUserByEmail(email) {
-    return users.get(email.toLowerCase()) || null;
+export async function findUserByEmail(email) {
+    const { rows } = await db.query(
+        'SELECT * FROM users WHERE email = $1',
+        [email.toLowerCase()]
+    );
+    return rows[0] || null;  // Return the user or null if not found
 }
 
 /**
  * Find a user by their ID
- * Used when verifying tokens (token contains userId)
  * 
- * @param {string} id - The user ID (e.g., "USR-001")
- * @returns {Object|null} - The user object, or null if not found
+ * SQL: SELECT * FROM users WHERE id = $1
  */
-export function findUserById(id) {
-    return usersById.get(id) || null;
+export async function findUserById(id) {
+    const { rows } = await db.query(
+        'SELECT * FROM users WHERE id = $1',
+        [id]
+    );
+    return rows[0] || null;
 }
 
 /**
  * Create a new user (Registration)
  * 
- * @param {Object} userData - { name, email, password (already hashed!), role }
- * @returns {Object} - The created user (without password)
+ * SQL: INSERT INTO users (...) VALUES (...) RETURNING *
+ * 
+ * "RETURNING *" is a PostgreSQL feature — it returns the row
+ * that was just inserted, so we don't need a separate SELECT query!
  */
-export function createUser(userData) {
+export async function createUser(userData) {
     const id = `USR-${uuidv4().split('-')[0].toUpperCase()}`;
+    const avatar = userData.name.split(' ').map(n => n[0]).join('').toUpperCase();
 
-    const user = {
-        id,
-        name: userData.name,
-        email: userData.email.toLowerCase(),
-        password: userData.password,  // Should already be hashed!
-        role: userData.role || 'customer',  // Default role
-        title: userData.title || 'User',
-        avatar: userData.name.split(' ').map(n => n[0]).join('').toUpperCase(),
-        createdAt: new Date().toISOString()
-    };
+    const { rows } = await db.query(
+        `INSERT INTO users (id, name, email, password, role, title, avatar)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
+         RETURNING *`,
+        //         ↑ RETURNING * gives us back the inserted row!
+        [
+            id,
+            userData.name,
+            userData.email.toLowerCase(),
+            userData.password,  // Should already be hashed!
+            userData.role || 'customer',
+            userData.title || 'User',
+            avatar
+        ]
+    );
 
-    // Store in both indexes
-    users.set(user.email, user);
-    usersById.set(user.id, user);
-
-    console.log(`👤 New user registered: ${user.name} (${user.role})`);
-
-    return user;
+    console.log(`👤 New user registered: ${rows[0].name} (${rows[0].role})`);
+    return rows[0];
 }
 
 /**
  * Check if an email is already registered
  * 
- * @param {string} email - The email to check
- * @returns {boolean} - true if the email is taken
+ * SQL: SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)
+ * 
+ * This is more efficient than fetching the whole user —
+ * it just returns true/false.
  */
-export function emailExists(email) {
-    return users.has(email.toLowerCase());
+export async function emailExists(email) {
+    const { rows } = await db.query(
+        'SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)',
+        [email.toLowerCase()]
+    );
+    return rows[0].exists;  // true or false
 }
 
 /**
  * Get all users (for admin dashboard)
- * Returns users WITHOUT their passwords
+ * Returns users WITHOUT their password hashes
  * 
- * @returns {Array} - Array of user objects (no passwords)
+ * SQL: SELECT id, name, email, role, title, avatar, created_at FROM users
+ *      (notice: no "password" column!)
  */
-export function getAllUsers() {
-    return Array.from(users.values()).map(user => {
-        // Destructure to remove password from the response
-        const { password, ...safeUser } = user;
-        return safeUser;
-    });
+export async function getAllUsers() {
+    const { rows } = await db.query(
+        'SELECT id, name, email, role, title, avatar, created_at FROM users ORDER BY created_at ASC'
+    );
+    return rows;
 }
 
 /**
  * Remove sensitive fields from a user object
- * Always use this before sending user data to the client!
- * 
- * @param {Object} user - Raw user object (with password hash)
- * @returns {Object} - Safe user object (no password)
  */
 export function sanitizeUser(user) {
     if (!user) return null;

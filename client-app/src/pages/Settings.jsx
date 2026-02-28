@@ -23,12 +23,12 @@ const Settings = () => {
     return (
         <div className="max-w-3xl space-y-6">
             <div>
-                <h1 className="text-2xl font-bold text-slate-800">Settings</h1>
-                <p className="text-slate-500 text-sm mt-1">Manage your preferences and system configuration.</p>
+                <h1 className="text-2xl font-bold text-white">Settings</h1>
+                <p className="text-slate-400 text-sm mt-1">Manage your preferences and system configuration.</p>
             </div>
 
             {/* Profile Card */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+            <div className="bg-slate-900/50 backdrop-blur-md rounded-2xl shadow-xl border border-slate-800 p-6">
                 <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Profile</h2>
                 <div className="flex items-center">
                     <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg ${user?.role === 'admin' ? 'bg-gradient-to-br from-blue-500 to-indigo-600 shadow-blue-200' :
@@ -38,11 +38,11 @@ const Settings = () => {
                         {user?.avatar || '?'}
                     </div>
                     <div className="ml-4 flex-1">
-                        <h3 className="font-bold text-slate-800 text-lg">{user?.name || 'Guest'}</h3>
-                        <p className="text-sm text-slate-500">{user?.email || 'No email'}</p>
-                        <span className={`inline-flex text-xs font-medium px-2 py-0.5 rounded-full mt-1 ${user?.role === 'admin' ? 'bg-blue-100 text-blue-700' :
-                            user?.role === 'customer' ? 'bg-emerald-100 text-emerald-700' :
-                                'bg-amber-100 text-amber-700'
+                        <h3 className="font-bold text-white text-lg">{user?.name || 'Guest'}</h3>
+                        <p className="text-sm text-slate-400">{user?.email || 'No email'}</p>
+                        <span className={`inline-flex text-xs font-medium px-2 py-0.5 rounded-full mt-1 ${user?.role === 'admin' ? 'bg-blue-500/10 border border-blue-500/20 text-blue-400' :
+                            user?.role === 'customer' ? 'bg-emerald-500/10 border border-emerald-500/20 text-emerald-400' :
+                                'bg-amber-500/10 border border-amber-500/20 text-amber-400'
                             }`}>
                             {user?.title || user?.role || 'Guest'}
                         </span>
@@ -51,48 +51,48 @@ const Settings = () => {
             </div>
 
             {/* Preferences */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-100">
+            <div className="bg-slate-900/50 backdrop-blur-md rounded-2xl shadow-xl border border-slate-800 overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-800/50">
                     <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Preferences</h2>
                 </div>
 
                 {/* Appearance */}
-                <div className="px-6 py-5 flex items-center justify-between border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                <div className="px-6 py-5 flex items-center justify-between border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
                     <div className="flex items-center">
-                        <div className="p-2.5 bg-indigo-50 text-indigo-600 rounded-xl mr-4">
+                        <div className="p-2.5 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-xl mr-4">
                             {darkMode ? <Moon size={18} /> : <Sun size={18} />}
                         </div>
                         <div>
-                            <h3 className="font-semibold text-slate-800 text-sm">Dark Mode</h3>
-                            <p className="text-xs text-slate-500 mt-0.5">Toggle between light and dark themes</p>
+                            <h3 className="font-semibold text-white text-sm">Dark Mode</h3>
+                            <p className="text-xs text-slate-400 mt-0.5">Toggle between light and dark themes</p>
                         </div>
                     </div>
                     <Toggle enabled={darkMode} onToggle={toggleDarkMode} />
                 </div>
 
                 {/* Notifications */}
-                <div className="px-6 py-5 flex items-center justify-between border-b border-slate-50 hover:bg-slate-50/50 transition-colors">
+                <div className="px-6 py-5 flex items-center justify-between border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
                     <div className="flex items-center">
-                        <div className="p-2.5 bg-purple-50 text-purple-600 rounded-xl mr-4">
+                        <div className="p-2.5 bg-purple-500/10 border border-purple-500/20 text-purple-400 rounded-xl mr-4">
                             <Bell size={18} />
                         </div>
                         <div>
-                            <h3 className="font-semibold text-slate-800 text-sm">Real-time Notifications</h3>
-                            <p className="text-xs text-slate-500 mt-0.5">Receive WebSocket event updates from the middleware</p>
+                            <h3 className="font-semibold text-white text-sm">Real-time Notifications</h3>
+                            <p className="text-xs text-slate-400 mt-0.5">Receive WebSocket event updates from the middleware</p>
                         </div>
                     </div>
                     <Toggle enabled={notifications} onToggle={() => setNotifications(!notifications)} />
                 </div>
 
                 {/* Auto Refresh */}
-                <div className="px-6 py-5 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
+                <div className="px-6 py-5 flex items-center justify-between hover:bg-slate-800/30 transition-colors">
                     <div className="flex items-center">
-                        <div className="p-2.5 bg-cyan-50 text-cyan-600 rounded-xl mr-4">
+                        <div className="p-2.5 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 rounded-xl mr-4">
                             <Wifi size={18} />
                         </div>
                         <div>
-                            <h3 className="font-semibold text-slate-800 text-sm">Auto-refresh Dashboard</h3>
-                            <p className="text-xs text-slate-500 mt-0.5">Automatically fetch metrics every 10 seconds</p>
+                            <h3 className="font-semibold text-white text-sm">Auto-refresh Dashboard</h3>
+                            <p className="text-xs text-slate-400 mt-0.5">Automatically fetch metrics every 10 seconds</p>
                         </div>
                     </div>
                     <Toggle enabled={autoRefresh} onToggle={() => setAutoRefresh(!autoRefresh)} />
@@ -100,28 +100,28 @@ const Settings = () => {
             </div>
 
             {/* System Info */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-100">
+            <div className="bg-slate-900/50 backdrop-blur-md rounded-2xl shadow-xl border border-slate-800 overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-800/50">
                     <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">System Configuration</h2>
                 </div>
 
-                <div className="divide-y divide-slate-50">
+                <div className="divide-y divide-slate-800/50">
                     {[
-                        { icon: Globe, iconBg: 'bg-blue-50', iconColor: 'text-blue-600', label: 'API Gateway', value: API_GATEWAY_URL },
-                        { icon: Server, iconBg: 'bg-emerald-50', iconColor: 'text-emerald-600', label: 'WebSocket Service', value: 'ws://localhost:3004' },
-                        { icon: Database, iconBg: 'bg-orange-50', iconColor: 'text-orange-600', label: 'RabbitMQ', value: 'amqp://localhost:5672' },
-                        { icon: Key, iconBg: 'bg-rose-50', iconColor: 'text-rose-600', label: 'API Key', value: 'swift-123-secret' },
+                        { icon: Globe, iconBg: 'bg-blue-500/10 border border-blue-500/20', iconColor: 'text-blue-400', label: 'API Gateway', value: API_GATEWAY_URL },
+                        { icon: Server, iconBg: 'bg-emerald-500/10 border border-emerald-500/20', iconColor: 'text-emerald-400', label: 'WebSocket Service', value: 'ws://localhost:3004' },
+                        { icon: Database, iconBg: 'bg-orange-500/10 border border-orange-500/20', iconColor: 'text-orange-400', label: 'RabbitMQ', value: 'amqp://localhost:5672' },
+                        { icon: Key, iconBg: 'bg-rose-500/10 border border-rose-500/20', iconColor: 'text-rose-400', label: 'API Key', value: 'swift-123-secret' },
                     ].map((item, i) => {
                         const Icon = item.icon;
                         return (
-                            <div key={i} className="px-6 py-4 flex items-center justify-between hover:bg-slate-50/50 transition-colors">
+                            <div key={i} className="px-6 py-4 flex items-center justify-between hover:bg-slate-800/30 transition-colors">
                                 <div className="flex items-center">
                                     <div className={`p-2 ${item.iconBg} ${item.iconColor} rounded-lg mr-3`}>
                                         <Icon size={16} />
                                     </div>
-                                    <span className="text-sm font-medium text-slate-700">{item.label}</span>
+                                    <span className="text-sm font-medium text-slate-300">{item.label}</span>
                                 </div>
-                                <code className="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg font-mono">{item.value}</code>
+                                <code className="text-xs bg-slate-800 border border-slate-700 text-slate-400 px-2.5 py-1 rounded-lg font-mono">{item.value}</code>
                             </div>
                         );
                     })}
@@ -130,21 +130,21 @@ const Settings = () => {
 
             {/* Danger Zone */}
             {user?.role === 'admin' && (
-                <div className="bg-white rounded-2xl shadow-sm border border-red-100 overflow-hidden">
-                    <div className="px-6 py-4 border-b border-red-50">
+                <div className="bg-slate-900/50 backdrop-blur-md rounded-2xl shadow-xl border border-red-500/20 overflow-hidden">
+                    <div className="px-6 py-4 border-b border-red-500/10">
                         <h2 className="text-xs font-semibold text-red-500 uppercase tracking-wider">Danger Zone</h2>
                     </div>
                     <div className="px-6 py-5 flex items-center justify-between">
                         <div className="flex items-center">
-                            <div className="p-2.5 bg-red-50 text-red-600 rounded-xl mr-4">
+                            <div className="p-2.5 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl mr-4">
                                 <Database size={18} />
                             </div>
                             <div>
-                                <h3 className="font-semibold text-slate-800 text-sm">Clear All Order Data</h3>
-                                <p className="text-xs text-slate-500 mt-0.5">This will reset the in-memory order store. Cannot be undone.</p>
+                                <h3 className="font-semibold text-white text-sm">Clear All Order Data</h3>
+                                <p className="text-xs text-slate-400 mt-0.5">This will reset the in-memory order store. Cannot be undone.</p>
                             </div>
                         </div>
-                        <button className="px-4 py-2 text-xs font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors">
+                        <button className="px-4 py-2 text-xs font-medium text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg hover:bg-red-500/20 transition-colors">
                             Reset Data
                         </button>
                     </div>

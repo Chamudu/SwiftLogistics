@@ -1,0 +1,14 @@
+{
+    "Servers": {
+        "1": {
+            "Name": "SwiftLogistics DB",
+            "Group": "Servers",
+            "Host": "postgres",
+            "Port": 5432,
+            "MaintenanceDB": "swiftlogistics",
+            "Username": "swiftlogistics",
+            "SSLMode": "prefer",
+            "PassFile": "/tmp/pgpassfile"
+        }
+    }
+}

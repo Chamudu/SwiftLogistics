@@ -157,7 +157,7 @@ async function handleGetPackageStatus(message) {
 
     try {
         const response = await callTCPService({
-            action: 'GET_PACKAGE_STATUS',
+            type: 'GET_PACKAGE_STATUS',
             data: { packageId }
         });
 
@@ -183,7 +183,7 @@ async function handleUpdatePackageStatus(message) {
 
     try {
         const response = await callTCPService({
-            action: 'UPDATE_PACKAGE_STATUS',
+            type: 'UPDATE_PACKAGE_STATUS',
             data: { packageId, status, location }
         });
 
@@ -206,7 +206,7 @@ async function handleGetInventory(message) {
 
     try {
         const response = await callTCPService({
-            action: 'GET_INVENTORY',
+            type: 'GET_INVENTORY',
             data: message.data || {}
         });
 
