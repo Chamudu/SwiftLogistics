@@ -175,14 +175,24 @@ export const db = {
 export async function initializeDatabase() {
     console.log('🗄️  Initializing database schema...');
 
+    // Create a dedicated client for the transaction to hold the advisory lock
+    const client = await db.getClient();
+
     try {
+        await client.query('BEGIN');
+
+        // Grab an advisory lock (arbitrary big integer ID 199923).
+        // If another service is already running this transaction,
+        // this call will block and wait for them to finish!
+        await client.query('SELECT pg_advisory_xact_lock(199923)');
+
         // Test the connection first
-        const connectionTest = await db.query('SELECT NOW()');
+        const connectionTest = await client.query('SELECT NOW()');
         console.log(`   ✅ Connected to PostgreSQL at ${DB_CONFIG.host}:${DB_CONFIG.port}`);
         console.log(`   📅 Server time: ${connectionTest.rows[0].now}`);
 
         // ── USERS TABLE ──
-        await db.query(`
+        await client.query(`
             CREATE TABLE IF NOT EXISTS users (
                 id          TEXT PRIMARY KEY,
                 name        TEXT NOT NULL,
@@ -197,7 +207,7 @@ export async function initializeDatabase() {
         console.log('   ✅ Table: users');
 
         // ── ORDERS TABLE ──
-        await db.query(`
+        await client.query(`
             CREATE TABLE IF NOT EXISTS orders (
                 id          TEXT PRIMARY KEY,
                 user_id     TEXT REFERENCES users(id),
@@ -218,7 +228,7 @@ export async function initializeDatabase() {
 
         // ── REFRESH TOKENS TABLE ──
         // Stores active refresh tokens so they can be revoked (on logout)
-        await db.query(`
+        await client.query(`
             CREATE TABLE IF NOT EXISTS refresh_tokens (
                 id          SERIAL PRIMARY KEY,
                 user_id     TEXT REFERENCES users(id) ON DELETE CASCADE,
@@ -231,18 +241,22 @@ export async function initializeDatabase() {
         //  ↑ ON DELETE CASCADE = if the user is deleted, their tokens are too
         console.log('   ✅ Table: refresh_tokens');
 
-        // Count existing data
-        const userCount = await db.query('SELECT COUNT(*) FROM users');
-        const orderCount = await db.query('SELECT COUNT(*) FROM orders');
+        // Count existing data using the locked client
+        const userCount = await client.query('SELECT COUNT(*) FROM users');
+        const orderCount = await client.query('SELECT COUNT(*) FROM orders');
         console.log(`   📊 Existing data: ${userCount.rows[0].count} users, ${orderCount.rows[0].count} orders`);
         console.log('🗄️  Database ready!\n');
 
+        await client.query('COMMIT');
         return true;
 
     } catch (error) {
+        await client.query('ROLLBACK');
         console.error('❌ Database initialization failed:', error.message);
         console.error('   Make sure PostgreSQL is running: docker-compose up -d');
         return false;
+    } finally {
+        client.release();
     }
 }
 

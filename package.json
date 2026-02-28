@@ -7,10 +7,13 @@
   "private": true,
   "workspaces": [
     "mock-services/*",
-    "services/*",
     "adapters/*",
     "shared/*",
-    "workers/*"
+    "workers/*",
+    "auth-service",
+    "order-service",
+    "websocket-service",
+    "api-gateway"
   ],
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",

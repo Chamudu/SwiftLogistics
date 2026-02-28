@@ -53,6 +53,16 @@ export const AuthProvider = ({ children }) => {
         return data;
     };
 
+    // ── REGISTER ──
+    const register = async (name, email, password, role) => {
+        const data = await api.register(name, email, password, role);
+        setUser(data.user);
+        localStorage.setItem('swift_user', JSON.stringify(data.user));
+        // 🔌 Connect to WebSocket after successful registration
+        socketService.connect(data.user);
+        return data;
+    };
+
     // ── QUICK LOGIN (Demo mode — login by role with default credentials) ──
     // Keeps backward compatibility with the role-selection cards
     const quickLogin = async (role) => {
@@ -90,6 +100,7 @@ export const AuthProvider = ({ children }) => {
         <AuthContext.Provider value={{
             user,
             login,
+            register,
             quickLogin,
             logout,
             isAuthenticated: !!user,

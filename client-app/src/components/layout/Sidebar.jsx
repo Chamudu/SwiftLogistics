@@ -9,6 +9,7 @@ const menuConfig = {
         { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
         { icon: Package, label: 'All Orders', path: '/orders' },
         { icon: PlusCircle, label: 'New Order', path: '/new-order' },
+        { icon: Truck, label: 'Warehouse', path: '/warehouse' },
         { icon: Settings, label: 'Settings', path: '/settings' },
     ],
     customer: [
