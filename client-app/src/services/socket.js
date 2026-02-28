@@ -22,7 +22,13 @@ class SocketService {
     constructor() {
         this.socket = null;
         this.connected = false;
-        this.listeners = new Map();  // Track all event listeners for cleanup
+
+        // Track event listeners manually so multiple components can subscribe
+        this.listeners = {
+            'order:updated': new Set(),
+            'notification': new Set(),
+            'connection': new Set()
+        };
     }
 
     /**
@@ -44,6 +50,7 @@ class SocketService {
         this.socket.on('connect', () => {
             console.log('🔌 WebSocket connected');
             this.connected = true;
+            this.listeners['connection'].forEach(cb => cb(true));
 
             // Authenticate immediately after connecting
             if (user) {
@@ -62,11 +69,23 @@ class SocketService {
         this.socket.on('disconnect', (reason) => {
             console.log('❌ WebSocket disconnected:', reason);
             this.connected = false;
+            this.listeners['connection'].forEach(cb => cb(false));
         });
 
         this.socket.on('connect_error', (err) => {
             console.log('⚠️  WebSocket connection error (server may be down)');
             this.connected = false;
+            this.listeners['connection'].forEach(cb => cb(false));
+        });
+
+        // ── GLOBAL EVENT HANDLERS ──
+        // Only attach to socket.io ONCE, then delegate to our own listener sets
+        this.socket.on('order:updated', (data) => {
+            this.listeners['order:updated'].forEach(cb => cb(data));
+        });
+
+        this.socket.on('notification', (data) => {
+            this.listeners['notification'].forEach(cb => cb(data));
         });
     }
 
@@ -78,7 +97,12 @@ class SocketService {
             this.socket.disconnect();
             this.socket = null;
             this.connected = false;
-            this.listeners.clear();
+
+            // Clear all listeners except connection ones (which might need to know we disconnected)
+            this.listeners['order:updated'].clear();
+            this.listeners['notification'].clear();
+            this.listeners['connection'].forEach(cb => cb(false));
+            this.listeners['connection'].clear();
         }
     }
 
@@ -87,20 +111,17 @@ class SocketService {
      * Callback receives: { orderId, status, sagaStep, message, timestamp }
      */
     onOrderUpdate(callback) {
-        if (!this.socket) return;
-        this.socket.on('order:updated', callback);
-        this.listeners.set('order:updated', callback);
+        this.listeners['order:updated'].add(callback);
     }
 
     /**
      * Unsubscribe from order updates.
      */
-    offOrderUpdate() {
-        if (!this.socket) return;
-        const cb = this.listeners.get('order:updated');
-        if (cb) {
-            this.socket.off('order:updated', cb);
-            this.listeners.delete('order:updated');
+    offOrderUpdate(callback) {
+        if (callback) {
+            this.listeners['order:updated'].delete(callback);
+        } else {
+            this.listeners['order:updated'].clear();
         }
     }
 
@@ -109,20 +130,38 @@ class SocketService {
      * Callback receives: { type, title, message, timestamp }
      */
     onNotification(callback) {
-        if (!this.socket) return;
-        this.socket.on('notification', callback);
-        this.listeners.set('notification', callback);
+        this.listeners['notification'].add(callback);
     }
 
     /**
      * Unsubscribe from notifications.
      */
-    offNotification() {
-        if (!this.socket) return;
-        const cb = this.listeners.get('notification');
-        if (cb) {
-            this.socket.off('notification', cb);
-            this.listeners.delete('notification');
+    offNotification(callback) {
+        if (callback) {
+            this.listeners['notification'].delete(callback);
+        } else {
+            this.listeners['notification'].clear();
+        }
+    }
+
+    /**
+     * Subscribe to connection state changes.
+     * Callback receives: (isConnected: boolean)
+     */
+    onConnectionChange(callback) {
+        this.listeners['connection'].add(callback);
+        // Fire immediately with current state
+        callback(this.connected);
+    }
+
+    /**
+     * Unsubscribe from connection state changes.
+     */
+    offConnectionChange(callback) {
+        if (callback) {
+            this.listeners['connection'].delete(callback);
+        } else {
+            this.listeners['connection'].clear();
         }
     }
 
