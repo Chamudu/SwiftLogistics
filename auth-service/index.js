@@ -10,7 +10,7 @@
  * 
  *   password-utils.js  → Hashing passwords (bcrypt)
  *   jwt-utils.js       → Creating & verifying tokens (JWT)
- *   user-store.js      → Storing users (in-memory)
+ *   user-store.js      → Storing users (PostgreSQL!)
  *   middleware.js       → Protecting routes
  * 
  * ENDPOINTS:
@@ -56,6 +56,7 @@ import {
     getAllUsers
 } from './user-store.js';
 import { requireAuth, requireRole, blacklistToken } from './middleware.js';
+import { db } from '../shared/database/index.js';
 
 // ==========================================
 // 🏗️ SERVER SETUP
@@ -83,7 +84,7 @@ app.use(cors({
 // 5 times every 15 minutes. This makes brute-force impossible.
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,  // 15 minutes
-    max: 10,                    // 10 attempts per window
+    max: 1000,                    // 10 attempts per window
     message: {
         success: false,
         error: 'Too many login attempts',
@@ -96,16 +97,42 @@ const loginLimiter = rateLimit({
 // General rate limit for all auth endpoints
 const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 50,
+    max: 5000,
+    message: {
+        success: false,
+        error: 'Too many requests',
+        message: 'You have exceeded the 50 requests in 15 mins limit!'
+    },
     standardHeaders: true,
     legacyHeaders: false
 });
 
-app.use(generalLimiter);
+// ── REFRESH TOKEN DB HELPERS ──
+// Refresh tokens are now stored in PostgreSQL (refresh_tokens table)
+// instead of an in-memory Map. This means tokens survive server restarts!
 
-// Store for active refresh tokens (maps userId → refreshToken)
-// In production, this would be in Redis or a database
-const activeRefreshTokens = new Map();
+async function storeRefreshToken(userId, token) {
+    // Remove any existing refresh token for this user
+    await db.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
+    // Insert the new one (expires in 7 days)
+    await db.query(
+        `INSERT INTO refresh_tokens (user_id, token, expires_at)
+         VALUES ($1, $2, NOW() + INTERVAL '7 days')`,
+        [userId, token]
+    );
+}
+
+async function getStoredRefreshToken(userId) {
+    const { rows } = await db.query(
+        'SELECT token FROM refresh_tokens WHERE user_id = $1 AND expires_at > NOW()',
+        [userId]
+    );
+    return rows[0]?.token || null;
+}
+
+async function removeRefreshToken(userId) {
+    await db.query('DELETE FROM refresh_tokens WHERE user_id = $1', [userId]);
+}
 
 // ==========================================
 // 🩺 HEALTH CHECK (Unprotected)
@@ -119,6 +146,9 @@ app.get('/health', (req, res) => {
         timestamp: new Date().toISOString()
     });
 });
+
+// Apply general rate limiter AFTER health check so health checks don't consume tokens
+app.use(generalLimiter);
 
 // ==========================================
 // 📝 REGISTER — Create a New Account
@@ -176,7 +206,7 @@ app.post('/auth/register', async (req, res) => {
         }
 
         // Check if email is already taken
-        if (emailExists(email)) {
+        if (await emailExists(email)) {
             // ⚠️ Security note: In some applications, you might want to return
             // a generic "registration failed" message to avoid revealing which
             // emails are registered. For our learning project, we'll be explicit.
@@ -195,7 +225,7 @@ app.post('/auth/register', async (req, res) => {
         const hashedPassword = await hashPassword(password);
 
         // ── CREATE USER ──
-        const user = createUser({
+        const user = await createUser({
             name,
             email,
             password: hashedPassword,
@@ -207,8 +237,8 @@ app.post('/auth/register', async (req, res) => {
         const accessToken = generateAccessToken(user);
         const refreshToken = generateRefreshToken(user);
 
-        // Store the refresh token (so we can validate it later)
-        activeRefreshTokens.set(user.id, refreshToken);
+        // Store the refresh token in PostgreSQL
+        await storeRefreshToken(user.id, refreshToken);
 
         console.log(`📝 New registration: ${user.name} (${user.role})`);
 
@@ -245,7 +275,7 @@ app.post('/auth/register', async (req, res) => {
  * Apply stricter rate limiting to prevent brute-force attacks.
  * 
  * Request body:
- *   { email: "sarah@swiftlogistics.com", password: "password123" }
+ *   { email: "chamudu@swiftlogistics.com", password: "password123" }
  * 
  * What happens:
  *   1. Find user by email
@@ -267,7 +297,7 @@ app.post('/auth/login', loginLimiter, async (req, res) => {
         }
 
         // ── FIND USER ──
-        const user = findUserByEmail(email);
+        const user = await findUserByEmail(email);
 
         if (!user) {
             // ⚠️ Security: Use the same generic message for both "wrong email" 
@@ -297,8 +327,8 @@ app.post('/auth/login', loginLimiter, async (req, res) => {
         const accessToken = generateAccessToken(user);
         const refreshToken = generateRefreshToken(user);
 
-        // Store/update the refresh token
-        activeRefreshTokens.set(user.id, refreshToken);
+        // Store/update the refresh token in PostgreSQL
+        await storeRefreshToken(user.id, refreshToken);
 
         console.log(`🔑 Login: ${user.name} (${user.role})`);
 
@@ -370,7 +400,7 @@ app.post('/auth/refresh', async (req, res) => {
 
         // ── CHECK IF TOKEN IS STILL ACTIVE ──
         // (User might have logged out, which removes their refresh token)
-        const storedToken = activeRefreshTokens.get(result.decoded.userId);
+        const storedToken = await getStoredRefreshToken(result.decoded.userId);
 
         if (storedToken !== refreshToken) {
             return res.status(401).json({
@@ -382,7 +412,7 @@ app.post('/auth/refresh', async (req, res) => {
         }
 
         // ── FIND USER ──
-        const user = findUserById(result.decoded.userId);
+        const user = await findUserById(result.decoded.userId);
 
         if (!user) {
             return res.status(401).json({
@@ -429,12 +459,12 @@ app.post('/auth/refresh', async (req, res) => {
  * 
  * After logout, both tokens become unusable.
  */
-app.post('/auth/logout', requireAuth, (req, res) => {
+app.post('/auth/logout', requireAuth, async (req, res) => {
     // Blacklist the current access token
     blacklistToken(req.token);
 
-    // Remove the refresh token
-    activeRefreshTokens.delete(req.user.userId);
+    // Remove the refresh token from PostgreSQL
+    await removeRefreshToken(req.user.userId);
 
     console.log(`🚪 Logout: ${req.user.name}`);
 
@@ -459,8 +489,8 @@ app.post('/auth/logout', requireAuth, (req, res) => {
  * - Show role-specific UI elements
  * - Verify the session is still active
  */
-app.get('/auth/me', requireAuth, (req, res) => {
-    const user = findUserById(req.user.userId);
+app.get('/auth/me', requireAuth, async (req, res) => {
+    const user = await findUserById(req.user.userId);
 
     if (!user) {
         return res.status(404).json({
@@ -513,8 +543,8 @@ app.get('/auth/verify', requireAuth, (req, res) => {
  * Admin-only endpoint — lists all registered users.
  * Demonstrates role-based access control (RBAC).
  */
-app.get('/auth/users', requireAuth, requireRole('admin'), (req, res) => {
-    const users = getAllUsers();
+app.get('/auth/users', requireAuth, requireRole('admin'), async (req, res) => {
+    const users = await getAllUsers();
 
     res.json({
         success: true,
@@ -543,9 +573,9 @@ app.get('/', (req, res) => {
             health: 'GET /health'
         },
         demoCredentials: {
-            admin: { email: 'sarah@swiftlogistics.com', password: 'password123' },
-            customer: { email: 'james@acmecorp.com', password: 'password123' },
-            driver: { email: 'mike@swiftlogistics.com', password: 'password123' }
+            admin: { email: 'chamudu@swiftlogistics.com', password: 'password123' },
+            customer: { email: 'newandie@acmecorp.com', password: 'password123' },
+            driver: { email: 'tharusha@swiftlogistics.com', password: 'password123' }
         }
     });
 });
@@ -574,6 +604,7 @@ async function start() {
 ║   📍 Profile:    GET  /auth/me                     ║
 ║   📍 Verify:     GET  /auth/verify                 ║
 ║                                                    ║
+║   🗄️  Storage:    PostgreSQL                       ║
 ║   🧪 Demo users seeded (password: password123)     ║
 ║   🩺 Health:     GET  /health                      ║
 ╚════════════════════════════════════════════════════╝
