@@ -73,17 +73,17 @@ start "Frontend" cmd /k "cd client-app && npm run dev"
 
 echo.
 echo ===================================================
-echo   ✅ All 15 services started!
+echo    All 15 services started!
 echo ===================================================
 echo.
-echo   🖥️  Frontend:     http://localhost:5173
-echo   🔗  API Gateway:  http://localhost:5000
-echo   📊  Metrics:      http://localhost:5000/metrics
-echo   🩺  Health:       http://localhost:5000/health
-echo   🐰  RabbitMQ:     http://localhost:15672  (guest/guest)
-echo   🐘  pgAdmin:      http://localhost:5050   (admin@swift.com/admin)
+echo    Frontend:     http://localhost:5173
+echo    API Gateway:  http://localhost:5000
+echo    Metrics:      http://localhost:5000/metrics
+echo    Health:       http://localhost:5000/health
+echo    RabbitMQ:     http://localhost:15672  (guest/guest)
+echo    pgAdmin:      http://localhost:5050   (admin@swift.com/admin)
 echo.
-echo   ⚠️  Close this window to keep services running
-echo   ⚠️  To stop all: close each terminal window
+echo    Close this window to keep services running
+echo    To stop all: close each terminal window
 echo.
 pause
