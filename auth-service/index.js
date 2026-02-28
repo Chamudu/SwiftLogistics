@@ -107,8 +107,6 @@ const generalLimiter = rateLimit({
     legacyHeaders: false
 });
 
-app.use(generalLimiter);
-
 // ── REFRESH TOKEN DB HELPERS ──
 // Refresh tokens are now stored in PostgreSQL (refresh_tokens table)
 // instead of an in-memory Map. This means tokens survive server restarts!
@@ -148,6 +146,11 @@ app.get('/health', (req, res) => {
         timestamp: new Date().toISOString()
     });
 });
+
+// Apply general rate limiter AFTER health check so health checks don't consume tokens
+app.use(generalLimiter);
+
+
 
 // ==========================================
 // 📝 REGISTER — Create a New Account
