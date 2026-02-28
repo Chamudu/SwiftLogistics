@@ -4,7 +4,8 @@
     "description": "Real-time WebSocket server for SwiftLogistics order tracking",
     "main": "index.js",
     "scripts": {
-        "dev": "node index.js"
+        "dev": "node index.js",
+        "start": "node index.js"
     },
     "dependencies": {
         "cors": "^2.8.5",
