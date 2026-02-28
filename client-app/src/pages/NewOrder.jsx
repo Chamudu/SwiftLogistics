@@ -1,10 +1,7 @@
 import React, { useState } from 'react';
 import { Send, MapPin, Box, AlertCircle, CheckCircle, ArrowLeft, Zap, Package, Truck, CreditCard, ChevronRight } from 'lucide-react';
-import axios from 'axios';
+import { api } from '../services/api';
 import { useNavigate } from 'react-router-dom';
-
-const API_GATEWAY_URL = 'http://localhost:5000';
-const API_KEY = 'swift-123-secret';
 
 const ITEMS_CATALOG = [
     { sku: 'ITEM-001', name: 'Laptop Pro 16"', category: 'Electronics', price: 1299, weight: '2.1 kg' },
@@ -50,19 +47,17 @@ const NewOrder = () => {
                 destination: formData.address,
             };
 
-            const response = await axios.post(`${API_GATEWAY_URL}/orders`, payload, {
-                headers: { 'x-api-key': API_KEY, 'Content-Type': 'application/json' },
-            });
+            const data = await api.createOrder(payload);
 
-            if (response.data && response.data.success) {
-                setSuccess(`Order Created! ID: ${response.data.orderId}`);
+            if (data && (data.success || data.orderId || data.id)) {
+                setSuccess(`Order Created! ID: ${data.orderId || data.id}`);
                 setStep(4); // success step
             } else {
                 setError('Order creation failed. Please try again.');
             }
         } catch (err) {
             console.error('API Error:', err);
-            setError(err.response?.data?.message || err.message || 'Failed to submit order');
+            setError(err.message || 'Failed to submit order');
         } finally {
             setLoading(false);
         }
@@ -91,7 +86,7 @@ const NewOrder = () => {
                     <div className="flex items-center justify-between relative">
                         {/* Progress line */}
                         <div className="absolute top-5 left-0 right-0 h-0.5 bg-slate-200">
-                            <div className="h-full bg-blue-600 transition-all duration-500" style={{ width: `${((step - 1) / 2) * 100}%` }} />
+                            <div className="h-full bg-gradient-to-r from-blue-600 to-indigo-500 transition-all duration-500" style={{ width: `${((step - 1) / 2) * 100}%` }} />
                         </div>
 
                         {[
@@ -105,8 +100,8 @@ const NewOrder = () => {
                             return (
                                 <div key={s.num} className="relative flex flex-col items-center z-10">
                                     <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${isCompleted ? 'bg-blue-600 border-blue-600 text-white' :
-                                            isActive ? 'bg-white border-blue-600 text-blue-600 shadow-lg shadow-blue-100' :
-                                                'bg-white border-slate-200 text-slate-400'
+                                        isActive ? 'bg-white border-blue-600 text-blue-600 shadow-lg shadow-blue-100' :
+                                            'bg-white border-slate-200 text-slate-400'
                                         }`}>
                                         {isCompleted ? <CheckCircle size={18} /> : <Icon size={18} />}
                                     </div>
@@ -141,9 +136,9 @@ const NewOrder = () => {
                                     key={item.sku}
                                     type="button"
                                     onClick={() => setFormData({ ...formData, sku: item.sku })}
-                                    className={`text-left p-4 rounded-xl border-2 transition-all ${formData.sku === item.sku
-                                            ? 'border-blue-500 bg-blue-50/50 shadow-sm'
-                                            : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50'
+                                    className={`text-left p-4 rounded-xl border-2 transition-all hover-lift ${formData.sku === item.sku
+                                        ? 'border-blue-500 bg-blue-50/50 shadow-sm'
+                                        : 'border-slate-100 hover:border-slate-200 hover:bg-slate-50'
                                         }`}
                                 >
                                     <div className="flex items-start justify-between">
@@ -202,9 +197,9 @@ const NewOrder = () => {
                                     <button
                                         type="button"
                                         onClick={() => setFormData({ ...formData, priority: 'standard' })}
-                                        className={`p-4 rounded-xl border-2 text-left transition-all ${formData.priority === 'standard'
-                                                ? 'border-blue-500 bg-blue-50/50'
-                                                : 'border-slate-100 hover:border-slate-200'
+                                        className={`p-4 rounded-xl border-2 text-left transition-all hover-lift ${formData.priority === 'standard'
+                                            ? 'border-blue-500 bg-blue-50/50'
+                                            : 'border-slate-100 hover:border-slate-200'
                                             }`}
                                     >
                                         <Truck size={20} className="text-slate-600 mb-2" />
@@ -214,9 +209,9 @@ const NewOrder = () => {
                                     <button
                                         type="button"
                                         onClick={() => setFormData({ ...formData, priority: 'express' })}
-                                        className={`p-4 rounded-xl border-2 text-left transition-all ${formData.priority === 'express'
-                                                ? 'border-blue-500 bg-blue-50/50'
-                                                : 'border-slate-100 hover:border-slate-200'
+                                        className={`p-4 rounded-xl border-2 text-left transition-all hover-lift ${formData.priority === 'express'
+                                            ? 'border-blue-500 bg-blue-50/50'
+                                            : 'border-slate-100 hover:border-slate-200'
                                             }`}
                                     >
                                         <Zap size={20} className="text-amber-500 mb-2" />
@@ -279,7 +274,7 @@ const NewOrder = () => {
                 {/* Step 4: Success */}
                 {step === 4 && (
                     <div className="p-12 text-center">
-                        <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-scale-in">
                             <CheckCircle size={32} className="text-emerald-600" />
                         </div>
                         <h2 className="text-xl font-bold text-slate-800 mb-2">Order Successfully Created!</h2>
@@ -314,8 +309,8 @@ const NewOrder = () => {
                                 onClick={() => setStep(step + 1)}
                                 disabled={!canProceed()}
                                 className={`flex items-center px-5 py-2.5 rounded-xl text-sm font-medium transition-all ${canProceed()
-                                        ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm shadow-blue-200'
-                                        : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                    ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm shadow-blue-200'
+                                    : 'bg-slate-100 text-slate-400 cursor-not-allowed'
                                     }`}
                             >
                                 Continue <ChevronRight size={16} className="ml-1" />
