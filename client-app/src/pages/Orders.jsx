@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
 import { Package, MapPin, Calendar, RefreshCw, CheckCircle, AlertCircle, Clock, Search, Filter, Eye, ChevronDown, Truck, X } from 'lucide-react';
-
-const API_GATEWAY_URL = 'http://localhost:5000';
-const API_KEY = 'swift-123-secret';
+import { api } from '../services/api';
+import { socketService } from '../services/socket';
 
 const Orders = () => {
     const [orders, setOrders] = useState([]);
@@ -15,10 +13,8 @@ const Orders = () => {
     const fetchOrders = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`${API_GATEWAY_URL}/orders`, {
-                headers: { 'x-api-key': API_KEY }
-            });
-            setOrders(Array.isArray(response.data) ? response.data : []);
+            const data = await api.getOrders();
+            setOrders(Array.isArray(data) ? data : (data.orders || []));
         } catch (error) {
             console.error('Failed to fetch orders:', error);
         } finally {
@@ -28,6 +24,17 @@ const Orders = () => {
 
     useEffect(() => {
         fetchOrders();
+
+        // Listen for real-time order updates
+        const handleOrderUpdate = (event) => {
+            // Refresh orders when we receive an update
+            fetchOrders();
+        };
+        socketService.onOrderUpdate(handleOrderUpdate);
+
+        return () => {
+            socketService.offOrderUpdate();
+        };
     }, []);
 
     const getStatusConfig = (status) => {
@@ -43,6 +50,7 @@ const Orders = () => {
 
     const filteredOrders = orders.filter(order => {
         const matchesSearch = order.orderId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            order.id?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             order.destination?.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesStatus = statusFilter === 'ALL' || order.status === statusFilter;
         return matchesSearch && matchesStatus;
@@ -54,6 +62,10 @@ const Orders = () => {
         PENDING: orders.filter(o => o.status === 'PENDING').length,
         FAILED: orders.filter(o => o.status === 'FAILED').length,
     };
+
+    const getOrderId = (order) => order.orderId || order.id;
+    const getOrderDate = (order) => order.createdAt || order.created_at;
+    const getSagaSteps = (order) => (order.logs || order.saga_log || []).length;
 
     return (
         <div className="space-y-6">
@@ -79,8 +91,8 @@ const Orders = () => {
                         key={status}
                         onClick={() => setStatusFilter(status)}
                         className={`flex items-center px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${statusFilter === status
-                                ? 'bg-blue-600 text-white shadow-sm shadow-blue-200'
-                                : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                            ? 'bg-blue-600 text-white shadow-sm shadow-blue-200'
+                            : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
                             }`}
                     >
                         {status === 'ALL' ? 'All' : status.charAt(0) + status.slice(1).toLowerCase()}
@@ -140,26 +152,28 @@ const Orders = () => {
                             </thead>
                             <tbody className="divide-y divide-slate-50">
                                 {filteredOrders.map((order) => {
+                                    const orderId = getOrderId(order);
                                     const config = getStatusConfig(order.status);
                                     const StatusIcon = config.icon;
-                                    const sagaSteps = order.logs?.length || 0;
+                                    const sagaSteps = getSagaSteps(order);
+                                    const orderDate = getOrderDate(order);
 
                                     return (
-                                        <tr key={order.orderId} className="hover:bg-slate-50/50 transition-colors group">
+                                        <tr key={orderId} className="hover:bg-slate-50/50 transition-colors group">
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center">
                                                     <div className="p-2 bg-blue-50 rounded-lg mr-3 group-hover:bg-blue-100 transition-colors">
                                                         <Package size={16} className="text-blue-600" />
                                                     </div>
-                                                    <span className="font-semibold text-slate-800">{order.orderId}</span>
+                                                    <span className="font-semibold text-slate-800">{orderId}</span>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="text-slate-700">
-                                                    {new Date(order.createdAt).toLocaleDateString()}
+                                                    {orderDate ? new Date(orderDate).toLocaleDateString() : '—'}
                                                 </div>
                                                 <div className="text-xs text-slate-400 mt-0.5">
-                                                    {new Date(order.createdAt).toLocaleTimeString()}
+                                                    {orderDate ? new Date(orderDate).toLocaleTimeString() : ''}
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
@@ -187,7 +201,7 @@ const Orders = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <button
-                                                    onClick={() => setSelectedOrder(selectedOrder?.orderId === order.orderId ? null : order)}
+                                                    onClick={() => setSelectedOrder(selectedOrder?.orderId === orderId || selectedOrder?.id === orderId ? null : order)}
                                                     className="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                                 >
                                                     <Eye size={16} />
@@ -206,7 +220,7 @@ const Orders = () => {
             {selectedOrder && (
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 animate-in">
                     <div className="flex items-center justify-between mb-4">
-                        <h3 className="text-lg font-bold text-slate-800">Order Details — {selectedOrder.orderId}</h3>
+                        <h3 className="text-lg font-bold text-slate-800">Order Details — {getOrderId(selectedOrder)}</h3>
                         <button onClick={() => setSelectedOrder(null)} className="p-1.5 hover:bg-slate-100 rounded-lg transition-colors">
                             <X size={16} className="text-slate-400" />
                         </button>
@@ -222,7 +236,7 @@ const Orders = () => {
                         </div>
                         <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
                             <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">Created</p>
-                            <p className="text-sm text-slate-700">{new Date(selectedOrder.createdAt).toLocaleString()}</p>
+                            <p className="text-sm text-slate-700">{new Date(getOrderDate(selectedOrder)).toLocaleString()}</p>
                         </div>
                         <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
                             <p className="text-xs text-slate-500 font-semibold uppercase tracking-wider mb-1">Items</p>
@@ -231,28 +245,31 @@ const Orders = () => {
                     </div>
 
                     {/* SAGA Log */}
-                    {selectedOrder.logs && selectedOrder.logs.length > 0 && (
-                        <div>
-                            <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">SAGA Transaction Log</h4>
-                            <div className="space-y-2">
-                                {selectedOrder.logs.map((log, i) => (
-                                    <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                                        <div className="flex items-center">
-                                            <CheckCircle size={14} className={`mr-3 ${log.status === 'COMPLETED' ? 'text-emerald-500' : 'text-red-500'}`} />
-                                            <div>
-                                                <span className="text-sm font-medium text-slate-700">{log.step}</span>
-                                                {log.data?.packageId && <span className="text-xs text-slate-400 ml-2">{log.data.packageId}</span>}
+                    {(() => {
+                        const logs = selectedOrder.logs || selectedOrder.saga_log || [];
+                        return logs.length > 0 && (
+                            <div>
+                                <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">SAGA Transaction Log</h4>
+                                <div className="space-y-2">
+                                    {logs.map((log, i) => (
+                                        <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
+                                            <div className="flex items-center">
+                                                <CheckCircle size={14} className={`mr-3 ${log.status === 'COMPLETED' ? 'text-emerald-500' : 'text-red-500'}`} />
+                                                <div>
+                                                    <span className="text-sm font-medium text-slate-700">{log.step}</span>
+                                                    {log.data?.packageId && <span className="text-xs text-slate-400 ml-2">{log.data.packageId}</span>}
+                                                </div>
                                             </div>
+                                            <span className={`text-xs font-medium px-2 py-1 rounded-full ${log.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                                                }`}>
+                                                {log.status}
+                                            </span>
                                         </div>
-                                        <span className={`text-xs font-medium px-2 py-1 rounded-full ${log.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
-                                            }`}>
-                                            {log.status}
-                                        </span>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        );
+                    })()}
                 </div>
             )}
         </div>

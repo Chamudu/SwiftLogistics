@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Truck, Package, Activity, CheckCircle, AlertCircle, Clock, Heart, Zap, BarChart3, RefreshCw } from 'lucide-react';
+import { Truck, Package, Activity, CheckCircle, AlertCircle, Clock, Heart, Zap, BarChart3, RefreshCw, Wifi, WifiOff } from 'lucide-react';
 import { socketService } from '../services/socket';
-import axios from 'axios';
-
-const API_GATEWAY_URL = 'http://localhost:5000';
+import { api } from '../services/api';
 
 const Dashboard = () => {
     const [events, setEvents] = useState([]);
@@ -11,15 +9,15 @@ const Dashboard = () => {
     const [health, setHealth] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    // Fetch real metrics & health data
+    // Fetch real metrics & health data via JWT-authenticated api service
     const fetchSystemData = async () => {
         try {
             const [metricsRes, healthRes] = await Promise.all([
-                axios.get(`${API_GATEWAY_URL}/metrics`).catch(() => null),
-                axios.get(`${API_GATEWAY_URL}/health`).catch(() => null),
+                api.getMetrics().catch(() => null),
+                api.getHealth().catch(() => null),
             ]);
-            if (metricsRes) setMetrics(metricsRes.data);
-            if (healthRes) setHealth(healthRes.data);
+            if (metricsRes) setMetrics(metricsRes);
+            if (healthRes) setHealth(healthRes);
         } catch (err) {
             console.error('Failed to fetch system data:', err);
         } finally {
@@ -32,27 +30,31 @@ const Dashboard = () => {
         fetchSystemData();
         const interval = setInterval(fetchSystemData, 10000);
 
-        // Connect to WebSocket
-        socketService.connect();
-
-        const handleEvent = (data) => {
-            console.log('🔔 New System Event:', data);
+        // Listen for real-time order updates via WebSocket
+        const handleOrderUpdate = (data) => {
+            console.log('🔔 Order Update:', data);
             setEvents(prev => [data, ...prev].slice(0, 15));
         };
 
-        socketService.onSystemEvent(handleEvent);
+        const handleNotification = (data) => {
+            console.log('📢 Notification:', data);
+            setEvents(prev => [{ ...data, type: 'notification' }, ...prev].slice(0, 15));
+        };
+
+        socketService.onOrderUpdate(handleOrderUpdate);
+        socketService.onNotification(handleNotification);
 
         return () => {
             clearInterval(interval);
-            socketService.offSystemEvent(handleEvent);
-            socketService.disconnect();
+            socketService.offOrderUpdate();
+            socketService.offNotification();
         };
     }, []);
 
-    const getEventIcon = (routingKey) => {
-        if (routingKey?.includes('reserved') || routingKey?.includes('success') || routingKey?.includes('scheduled'))
+    const getEventIcon = (event) => {
+        if (event.status === 'COMPLETED' || event.sagaStep === 'LOGISTICS')
             return <CheckCircle size={18} className="text-emerald-500" />;
-        if (routingKey?.includes('failed') || routingKey?.includes('cancel') || routingKey?.includes('released'))
+        if (event.status === 'FAILED')
             return <AlertCircle size={18} className="text-red-500" />;
         return <Activity size={18} className="text-blue-500" />;
     };
@@ -107,6 +109,8 @@ const Dashboard = () => {
         },
     ];
 
+    const wsConnected = socketService.isConnected();
+
     return (
         <div className="space-y-6">
             {/* Header */}
@@ -115,21 +119,33 @@ const Dashboard = () => {
                     <h1 className="text-2xl font-bold text-slate-800">Operational Overview</h1>
                     <p className="text-slate-500 text-sm mt-1">Real-time metrics from the API Gateway</p>
                 </div>
-                <button
-                    onClick={fetchSystemData}
-                    className="flex items-center px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors"
-                >
-                    <RefreshCw size={14} className={`mr-2 ${loading ? 'animate-spin' : ''}`} />
-                    Refresh
-                </button>
+                <div className="flex items-center gap-3">
+                    {/* WebSocket indicator */}
+                    <span className={`flex items-center text-xs font-medium px-2.5 py-1.5 rounded-full ${wsConnected
+                        ? 'text-emerald-600 bg-emerald-50'
+                        : 'text-slate-500 bg-slate-100'
+                        }`}>
+                        {wsConnected
+                            ? <><Wifi size={12} className="mr-1.5" /> Live</>
+                            : <><WifiOff size={12} className="mr-1.5" /> Offline</>
+                        }
+                    </span>
+                    <button
+                        onClick={fetchSystemData}
+                        className="flex items-center px-3 py-2 text-sm bg-white border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50 transition-colors"
+                    >
+                        <RefreshCw size={14} className={`mr-2 ${loading ? 'animate-spin' : ''}`} />
+                        Refresh
+                    </button>
+                </div>
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 stagger-children">
                 {stats.map((stat, index) => {
                     const Icon = stat.icon;
                     return (
-                        <div key={index} className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                        <div key={index} className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow hover-lift">
                             <div className="flex items-center justify-between mb-3">
                                 <div className={`p-2.5 rounded-lg ${stat.bgColor}`}>
                                     <Icon className={stat.iconColor} size={20} />
@@ -159,7 +175,7 @@ const Dashboard = () => {
                                         <div className="flex-1 mx-3">
                                             <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
                                                 <div
-                                                    className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                                                    className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full transition-all duration-500"
                                                     style={{ width: `${Math.min(pct, 100)}%` }}
                                                 />
                                             </div>
@@ -185,8 +201,8 @@ const Dashboard = () => {
                                 <div key={service} className="flex items-center justify-between p-3 rounded-lg bg-slate-50">
                                     <div className="flex items-center">
                                         <div className={`w-2.5 h-2.5 rounded-full mr-3 ${status === 'healthy' ? 'bg-emerald-500' :
-                                                status === 'degraded' ? 'bg-amber-500' :
-                                                    status === 'down' ? 'bg-red-500' : 'bg-slate-400'
+                                            status === 'degraded' ? 'bg-amber-500' :
+                                                status === 'down' ? 'bg-red-500' : 'bg-slate-400'
                                             }`} />
                                         <span className="text-sm font-medium text-slate-700">
                                             {service.replace(/([A-Z])/g, ' $1').trim()}
@@ -207,10 +223,13 @@ const Dashboard = () => {
             {/* Live Events Feed */}
             <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
                 <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-bold text-slate-800">Live System Events</h2>
-                    <span className="flex items-center text-xs font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
-                        <span className="w-2 h-2 bg-emerald-500 rounded-full mr-2 animate-pulse"></span>
-                        Live
+                    <h2 className="text-lg font-bold text-slate-800">Live Order Events</h2>
+                    <span className={`flex items-center text-xs font-medium px-2.5 py-1 rounded-full ${wsConnected
+                        ? 'text-emerald-600 bg-emerald-50'
+                        : 'text-slate-500 bg-slate-100'
+                        }`}>
+                        {wsConnected && <span className="w-2 h-2 bg-emerald-500 rounded-full mr-2 animate-pulse"></span>}
+                        {wsConnected ? 'Live' : 'Disconnected'}
                     </span>
                 </div>
 
@@ -223,23 +242,33 @@ const Dashboard = () => {
                         </div>
                     ) : (
                         events.map((event, index) => (
-                            <div key={index} className="p-3.5 bg-slate-50 rounded-lg border border-slate-100 flex items-start transition-all hover:bg-slate-100 hover:border-slate-200">
+                            <div key={index} className="p-3.5 bg-slate-50 rounded-lg border border-slate-100 flex items-start transition-all hover:bg-slate-100 hover:border-slate-200 animate-in">
                                 <div className="mt-0.5 mr-3">
-                                    {getEventIcon(event.routingKey)}
+                                    {getEventIcon(event)}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex justify-between items-start">
-                                        <h4 className="font-semibold text-slate-700 text-xs uppercase tracking-wider">
-                                            {event.routingKey}
-                                        </h4>
+                                        <div>
+                                            <h4 className="font-semibold text-slate-700 text-sm">
+                                                {event.orderId || event.title || 'System Event'}
+                                            </h4>
+                                            <p className="text-xs text-slate-500 mt-0.5">
+                                                {event.message || `SAGA Step: ${event.sagaStep}`}
+                                            </p>
+                                        </div>
                                         <span className="text-xs text-slate-400 flex items-center ml-2 flex-shrink-0">
                                             <Clock size={11} className="mr-1" />
                                             {new Date(event.timestamp).toLocaleTimeString()}
                                         </span>
                                     </div>
-                                    <pre className="mt-2 text-xs text-slate-600 bg-white p-2.5 rounded border border-slate-200 overflow-x-auto">
-                                        {JSON.stringify(event.data, null, 2)}
-                                    </pre>
+                                    {event.sagaStep && (
+                                        <span className={`inline-flex text-xs font-medium px-2 py-0.5 rounded-full mt-2 ${event.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
+                                            event.status === 'FAILED' ? 'bg-red-100 text-red-700' :
+                                                'bg-blue-100 text-blue-700'
+                                            }`}>
+                                            {event.sagaStep} — {event.status}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
                         ))

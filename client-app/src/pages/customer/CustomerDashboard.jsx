@@ -2,11 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Package, Truck, Clock, CheckCircle, ArrowRight, Plus, Activity } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import { api } from '../../services/api';
 import { socketService } from '../../services/socket';
-
-const API_GATEWAY_URL = 'http://localhost:5000';
-const API_KEY = 'swift-123-secret';
 
 const CustomerDashboard = () => {
     const { user } = useAuth();
@@ -16,10 +13,8 @@ const CustomerDashboard = () => {
 
     const fetchOrders = async () => {
         try {
-            const response = await axios.get(`${API_GATEWAY_URL}/orders`, {
-                headers: { 'x-api-key': API_KEY }
-            });
-            setOrders(Array.isArray(response.data) ? response.data : []);
+            const data = await api.getOrders();
+            setOrders(Array.isArray(data) ? data : (data.orders || []));
         } catch (error) {
             console.error('Failed to fetch orders:', error);
         } finally {
@@ -30,20 +25,23 @@ const CustomerDashboard = () => {
     useEffect(() => {
         fetchOrders();
 
-        // Listen to real-time events
-        socketService.connect();
-        const handleEvent = (data) => {
+        // Listen to real-time order updates
+        const handleOrderUpdate = (data) => {
             setLiveUpdates(prev => [data, ...prev].slice(0, 5));
             // Refresh orders when relevant events happen
-            if (data.routingKey?.includes('order') || data.routingKey?.includes('package')) {
-                fetchOrders();
-            }
+            fetchOrders();
         };
-        socketService.onSystemEvent(handleEvent);
+
+        const handleNotification = (data) => {
+            setLiveUpdates(prev => [{ ...data, type: 'notification' }, ...prev].slice(0, 5));
+        };
+
+        socketService.onOrderUpdate(handleOrderUpdate);
+        socketService.onNotification(handleNotification);
 
         return () => {
-            socketService.offSystemEvent(handleEvent);
-            socketService.disconnect();
+            socketService.offOrderUpdate();
+            socketService.offNotification();
         };
     }, []);
 
@@ -55,6 +53,7 @@ const CustomerDashboard = () => {
         }
     };
 
+    const getOrderId = (order) => order.orderId || order.id;
     const completedOrders = orders.filter(o => o.status === 'COMPLETED').length;
     const pendingOrders = orders.filter(o => o.status === 'PENDING').length;
 
@@ -74,8 +73,8 @@ const CustomerDashboard = () => {
             </div>
 
             {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 stagger-children">
+                <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover-lift">
                     <div className="flex items-center justify-between mb-2">
                         <div className="p-2 bg-blue-50 rounded-lg">
                             <Package size={20} className="text-blue-600" />
@@ -84,7 +83,7 @@ const CustomerDashboard = () => {
                     <h3 className="text-2xl font-bold text-slate-800">{orders.length}</h3>
                     <p className="text-slate-500 text-sm">Total Orders</p>
                 </div>
-                <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
+                <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover-lift">
                     <div className="flex items-center justify-between mb-2">
                         <div className="p-2 bg-emerald-50 rounded-lg">
                             <CheckCircle size={20} className="text-emerald-600" />
@@ -93,7 +92,7 @@ const CustomerDashboard = () => {
                     <h3 className="text-2xl font-bold text-slate-800">{completedOrders}</h3>
                     <p className="text-slate-500 text-sm">Delivered</p>
                 </div>
-                <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100">
+                <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-100 hover-lift">
                     <div className="flex items-center justify-between mb-2">
                         <div className="p-2 bg-amber-50 rounded-lg">
                             <Truck size={20} className="text-amber-600" />
@@ -132,20 +131,21 @@ const CustomerDashboard = () => {
                         {orders.slice(0, 5).map((order) => {
                             const statusConfig = getStatusConfig(order.status);
                             const StatusIcon = statusConfig.icon;
+                            const orderId = getOrderId(order);
                             return (
-                                <div key={order.orderId} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
+                                <div key={orderId} className="flex items-center justify-between p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors">
                                     <div className="flex items-center">
                                         <div className={`p-2 rounded-lg mr-3 bg-blue-50`}>
                                             <Package size={18} className="text-blue-600" />
                                         </div>
                                         <div>
-                                            <p className="font-semibold text-slate-800 text-sm">{order.orderId}</p>
+                                            <p className="font-semibold text-slate-800 text-sm">{orderId}</p>
                                             <p className="text-xs text-slate-500">{order.destination || 'N/A'}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3">
                                         <span className="text-xs text-slate-400">
-                                            {new Date(order.createdAt).toLocaleDateString()}
+                                            {new Date(order.createdAt || order.created_at).toLocaleDateString()}
                                         </span>
                                         <span className={`flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${statusConfig.color}`}>
                                             <StatusIcon size={12} className={`mr-1 ${statusConfig.iconColor}`} />
@@ -161,7 +161,7 @@ const CustomerDashboard = () => {
 
             {/* Live Updates */}
             {liveUpdates.length > 0 && (
-                <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+                <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 animate-in">
                     <div className="flex items-center justify-between mb-4">
                         <h2 className="text-lg font-bold text-slate-800">Live Updates</h2>
                         <span className="flex items-center text-xs font-medium text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
@@ -171,9 +171,12 @@ const CustomerDashboard = () => {
                     </div>
                     <div className="space-y-2">
                         {liveUpdates.map((update, i) => (
-                            <div key={i} className="flex items-center p-3 bg-slate-50 rounded-lg text-sm">
+                            <div key={i} className="flex items-center p-3 bg-slate-50 rounded-lg text-sm animate-in">
                                 <Activity size={14} className="text-blue-500 mr-3 flex-shrink-0" />
-                                <span className="font-medium text-slate-700 uppercase text-xs tracking-wide">{update.routingKey}</span>
+                                <span className="font-medium text-slate-700 text-xs flex-1">
+                                    {update.orderId || update.title || 'System Event'}
+                                    {update.sagaStep && <span className="text-slate-500 ml-1.5">— {update.sagaStep}</span>}
+                                </span>
                                 <span className="text-slate-400 text-xs ml-auto">{new Date(update.timestamp).toLocaleTimeString()}</span>
                             </div>
                         ))}

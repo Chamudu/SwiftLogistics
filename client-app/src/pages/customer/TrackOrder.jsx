@@ -1,10 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { MapPin, Package, Clock, CheckCircle, AlertCircle, Truck, Activity, Search } from 'lucide-react';
+import { MapPin, Package, Clock, CheckCircle, AlertCircle, Truck, Activity, Search, Wifi } from 'lucide-react';
 import { socketService } from '../../services/socket';
-import axios from 'axios';
-
-const API_GATEWAY_URL = 'http://localhost:5000';
-const API_KEY = 'swift-123-secret';
+import { api } from '../../services/api';
 
 const TrackOrder = () => {
     const [orders, setOrders] = useState([]);
@@ -14,16 +11,14 @@ const TrackOrder = () => {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Fetch orders
+        // Fetch orders via JWT-authenticated API
         const fetchOrders = async () => {
             try {
-                const response = await axios.get(`${API_GATEWAY_URL}/orders`, {
-                    headers: { 'x-api-key': API_KEY }
-                });
-                const data = Array.isArray(response.data) ? response.data : [];
-                setOrders(data);
-                if (data.length > 0 && !selectedOrder) {
-                    setSelectedOrder(data[0]);
+                const data = await api.getOrders();
+                const orderList = Array.isArray(data) ? data : (data.orders || []);
+                setOrders(orderList);
+                if (orderList.length > 0 && !selectedOrder) {
+                    setSelectedOrder(orderList[0]);
                 }
             } catch (err) {
                 console.error('Failed to fetch orders:', err);
@@ -34,18 +29,23 @@ const TrackOrder = () => {
 
         fetchOrders();
 
-        // Listen for real-time updates
-        socketService.connect();
-        const handleEvent = (data) => {
+        // Listen for real-time order updates
+        const handleOrderUpdate = (data) => {
             setEvents(prev => [data, ...prev].slice(0, 20));
+            // Also refresh orders to get latest status
+            fetchOrders();
         };
-        socketService.onSystemEvent(handleEvent);
+
+        socketService.onOrderUpdate(handleOrderUpdate);
 
         return () => {
-            socketService.offSystemEvent(handleEvent);
-            socketService.disconnect();
+            socketService.offOrderUpdate();
         };
     }, []);
+
+    const getOrderId = (order) => order.orderId || order.id;
+    const getOrderDate = (order) => order.createdAt || order.created_at;
+    const getSagaLogs = (order) => order.logs || order.saga_log || [];
 
     const getStatusStep = (status) => {
         switch (status) {
@@ -63,10 +63,13 @@ const TrackOrder = () => {
         { label: 'Delivered', icon: Truck, description: 'Package delivered successfully' },
     ];
 
-    const filteredOrders = orders.filter(o =>
-        o.orderId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        o.destination?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const filteredOrders = orders.filter(o => {
+        const orderId = getOrderId(o) || '';
+        return orderId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            o.destination?.toLowerCase().includes(searchTerm.toLowerCase());
+    });
+
+    const wsConnected = socketService.isConnected();
 
     return (
         <div className="space-y-6">
@@ -102,27 +105,30 @@ const TrackOrder = () => {
                                 No orders found
                             </div>
                         ) : (
-                            filteredOrders.map((order) => (
-                                <button
-                                    key={order.orderId}
-                                    onClick={() => setSelectedOrder(order)}
-                                    className={`w-full text-left p-3 rounded-lg transition-all ${selectedOrder?.orderId === order.orderId
+                            filteredOrders.map((order) => {
+                                const orderId = getOrderId(order);
+                                return (
+                                    <button
+                                        key={orderId}
+                                        onClick={() => setSelectedOrder(order)}
+                                        className={`w-full text-left p-3 rounded-lg transition-all ${getOrderId(selectedOrder) === orderId
                                             ? 'bg-blue-50 border border-blue-200'
                                             : 'hover:bg-slate-50 border border-transparent'
-                                        }`}
-                                >
-                                    <div className="flex items-center justify-between">
-                                        <span className="font-semibold text-sm text-slate-800">{order.orderId}</span>
-                                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${order.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
+                                            }`}
+                                    >
+                                        <div className="flex items-center justify-between">
+                                            <span className="font-semibold text-sm text-slate-800">{orderId}</span>
+                                            <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${order.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' :
                                                 order.status === 'FAILED' ? 'bg-red-100 text-red-700' :
                                                     'bg-amber-100 text-amber-700'
-                                            }`}>
-                                            {order.status}
-                                        </span>
-                                    </div>
-                                    <p className="text-xs text-slate-500 mt-1 truncate">{order.destination || 'No destination'}</p>
-                                </button>
-                            ))
+                                                }`}>
+                                                {order.status}
+                                            </span>
+                                        </div>
+                                        <p className="text-xs text-slate-500 mt-1 truncate">{order.destination || 'No destination'}</p>
+                                    </button>
+                                );
+                            })
                         )}
                     </div>
                 </div>
@@ -135,14 +141,14 @@ const TrackOrder = () => {
                             <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
                                 <div className="flex items-start justify-between mb-4">
                                     <div>
-                                        <h2 className="text-lg font-bold text-slate-800">{selectedOrder.orderId}</h2>
+                                        <h2 className="text-lg font-bold text-slate-800">{getOrderId(selectedOrder)}</h2>
                                         <p className="text-sm text-slate-500 flex items-center mt-1">
                                             <MapPin size={14} className="mr-1" />
                                             {selectedOrder.destination || 'N/A'}
                                         </p>
                                     </div>
                                     <span className="text-xs text-slate-400">
-                                        {new Date(selectedOrder.createdAt).toLocaleString()}
+                                        {new Date(getOrderDate(selectedOrder)).toLocaleString()}
                                     </span>
                                 </div>
 
@@ -162,9 +168,9 @@ const TrackOrder = () => {
                                                     {/* Step indicator */}
                                                     <div className="relative flex flex-col items-center mr-4">
                                                         <div className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-colors ${isFailed && index === 0 ? 'bg-red-100 border-red-400' :
-                                                                isCompleted ? 'bg-blue-600 border-blue-600' :
-                                                                    isCurrent ? 'bg-blue-100 border-blue-400 animate-pulse' :
-                                                                        'bg-slate-100 border-slate-200'
+                                                            isCompleted ? 'bg-blue-600 border-blue-600' :
+                                                                isCurrent ? 'bg-blue-100 border-blue-400 animate-pulse' :
+                                                                    'bg-slate-100 border-slate-200'
                                                             }`}>
                                                             <StepIcon size={18} className={
                                                                 isFailed && index === 0 ? 'text-red-600' :
@@ -195,25 +201,28 @@ const TrackOrder = () => {
                             </div>
 
                             {/* SAGA Log (from order) */}
-                            {selectedOrder.logs && selectedOrder.logs.length > 0 && (
-                                <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
-                                    <h3 className="text-sm font-semibold text-slate-600 mb-3 uppercase tracking-wide">SAGA Transaction Log</h3>
-                                    <div className="space-y-2">
-                                        {selectedOrder.logs.map((log, i) => (
-                                            <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                                                <div className="flex items-center">
-                                                    <CheckCircle size={14} className={`mr-3 ${log.status === 'COMPLETED' ? 'text-emerald-500' : 'text-red-500'}`} />
-                                                    <span className="text-sm font-medium text-slate-700">{log.step}</span>
+                            {(() => {
+                                const logs = getSagaLogs(selectedOrder);
+                                return logs.length > 0 && (
+                                    <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+                                        <h3 className="text-sm font-semibold text-slate-600 mb-3 uppercase tracking-wide">SAGA Transaction Log</h3>
+                                        <div className="space-y-2">
+                                            {logs.map((log, i) => (
+                                                <div key={i} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                                                    <div className="flex items-center">
+                                                        <CheckCircle size={14} className={`mr-3 ${log.status === 'COMPLETED' ? 'text-emerald-500' : 'text-red-500'}`} />
+                                                        <span className="text-sm font-medium text-slate-700">{log.step}</span>
+                                                    </div>
+                                                    <span className={`text-xs font-medium px-2 py-1 rounded-full ${log.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                                                        }`}>
+                                                        {log.status}
+                                                    </span>
                                                 </div>
-                                                <span className={`text-xs font-medium px-2 py-1 rounded-full ${log.status === 'COMPLETED' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
-                                                    }`}>
-                                                    {log.status}
-                                                </span>
-                                            </div>
-                                        ))}
+                                            ))}
+                                        </div>
                                     </div>
-                                </div>
-                            )}
+                                );
+                            })()}
                         </>
                     ) : (
                         <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-10 text-center text-slate-400">
@@ -225,19 +234,24 @@ const TrackOrder = () => {
 
                     {/* Real-time Events */}
                     {events.length > 0 && (
-                        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+                        <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-6 animate-in">
                             <div className="flex items-center justify-between mb-3">
                                 <h3 className="text-sm font-semibold text-slate-600 uppercase tracking-wide">Real-time Events</h3>
-                                <span className="flex items-center text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full">
-                                    <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full mr-1.5 animate-pulse" />
-                                    Live
+                                <span className={`flex items-center text-xs px-2 py-1 rounded-full ${wsConnected
+                                    ? 'text-emerald-600 bg-emerald-50'
+                                    : 'text-slate-500 bg-slate-100'
+                                    }`}>
+                                    <span className={`w-1.5 h-1.5 rounded-full mr-1.5 ${wsConnected ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                                    {wsConnected ? 'Live' : 'Offline'}
                                 </span>
                             </div>
                             <div className="space-y-2 max-h-48 overflow-y-auto">
                                 {events.slice(0, 8).map((event, i) => (
                                     <div key={i} className="flex items-center text-sm p-2.5 bg-slate-50 rounded-lg">
                                         <Activity size={13} className="text-blue-500 mr-2.5 flex-shrink-0" />
-                                        <span className="text-xs font-medium text-slate-600 uppercase tracking-wide flex-1">{event.routingKey}</span>
+                                        <span className="text-xs font-medium text-slate-600 flex-1">
+                                            {event.orderId || 'System'} — {event.sagaStep || event.message || 'update'}
+                                        </span>
                                         <span className="text-xs text-slate-400">{new Date(event.timestamp).toLocaleTimeString()}</span>
                                     </div>
                                 ))}
