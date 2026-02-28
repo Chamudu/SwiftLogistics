@@ -35,6 +35,9 @@ start "SOAP Adapter" cmd /k "cd adapters/soap-adapter && npm start"
 echo [7/15] Starting TCP Adapter (Port 3003)...
 start "TCP Adapter" cmd /k "cd adapters/tcp-adapter && npm start"
 
+:: Wait for mocks to fully start their servers before workers try to connect
+timeout /t 5 >nul
+
 :: ─────────────────────────────────────────────
 :: LAYER 3 — Message Workers
 :: ─────────────────────────────────────────────
@@ -50,7 +53,7 @@ start "WMS Worker" cmd /k "cd workers/wms-worker && npm start"
 :: ─────────────────────────────────────────────
 :: LAYER 4 — Core Services
 :: ─────────────────────────────────────────────
-echo [11/15] Starting Auth Service (Port 4003)...
+echo [11/15] Starting Auth Service (Port 4005)...
 start "Auth Service" cmd /k "cd auth-service && node index.js"
 
 echo [12/15] Starting Order Service (Port 4004)...

@@ -55,6 +55,9 @@ open_terminal "SOAP Adapter" "cd adapters/soap-adapter && npm start"
 echo "[7/15] Starting TCP Adapter (Port 3003)..."
 open_terminal "TCP Adapter" "cd adapters/tcp-adapter && npm start"
 
+# Wait for mocks to fully start their servers before workers try to connect
+sleep 5
+
 # ─────────────────────────────────────────────
 # LAYER 3 — Message Workers
 # ─────────────────────────────────────────────
@@ -70,7 +73,7 @@ open_terminal "WMS Worker" "cd workers/wms-worker && npm start"
 # ─────────────────────────────────────────────
 # LAYER 4 — Core Services
 # ─────────────────────────────────────────────
-echo "[11/15] Starting Auth Service (Port 4003)..."
+echo "[11/15] Starting Auth Service (Port 4005)..."
 open_terminal "Auth Service" "cd auth-service && node index.js"
 
 echo "[12/15] Starting Order Service (Port 4004)..."
