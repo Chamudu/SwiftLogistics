@@ -242,7 +242,6 @@ node test-gateway.js        # Gateway tests
 | Document | Description |
 |----------|-------------|
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | System architecture, data flows, component design |
-| [API.md](./API.md) | API reference for REST, SOAP, TCP endpoints |
 | [DOCKER.md](./DOCKER.md) | Docker setup, PostgreSQL & RabbitMQ commands |
 | [SETUP_GUIDE.md](./SETUP_GUIDE.md) | Local setup instructions and initialization steps |
 | [DEPLOYMENT.md](./DEPLOYMENT.md) | Deployment and configuration guide |

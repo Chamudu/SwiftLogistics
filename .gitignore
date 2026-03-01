@@ -197,4 +197,5 @@ test*.js
 !README.md
 !SETUP_GUIDE.md
 !DEPLOYMENT.md
+!ARCHITECTURE.md
 *.txt
