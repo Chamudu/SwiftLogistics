@@ -160,7 +160,7 @@ app.use(generalLimiter);
  * Creates a new user account.
  * 
  * Request body:
- *   { name: "John Doe", email: "john@example.com", password: "secure123", role: "customer" }
+ *   { name: "Santhosh", email: "santhosh@example.com", password: "secure123", role: "customer" }
  * 
  * What happens:
  *   1. Validate input (email format, password strength)

@@ -54,8 +54,8 @@ Create a new user account.
 **Request Body**:
 ```json
 {
-  "name": "John Doe",
-  "email": "john@example.com",
+  "name": "Chamudu Hansana",
+  "email": "chamudu@example.com",
   "password": "secure123",
   "role": "customer"
 }
@@ -75,11 +75,11 @@ Create a new user account.
   "message": "Account created successfully",
   "user": {
     "id": "USR-A1B2C3D4",
-    "name": "John Doe",
-    "email": "john@example.com",
+    "name": "Chamudu Hansana",
+    "email": "chamudu@example.com",
     "role": "customer",
     "title": "Business Client",
-    "avatar": "JD"
+    "avatar": "CH"
   },
   "tokens": {
     "accessToken": "eyJhbGciOiJIUzI1NiIs...",
@@ -101,7 +101,7 @@ Authenticate and receive JWT tokens.
 **Request Body**:
 ```json
 {
-  "email": "sarah@swiftlogistics.com",
+  "email": "chamudu@swiftlogistics.com",
   "password": "password123"
 }
 ```
@@ -113,10 +113,10 @@ Authenticate and receive JWT tokens.
   "message": "Login successful",
   "user": {
     "id": "USR-001",
-    "name": "Sarah Chen",
-    "email": "sarah@swiftlogistics.com",
+    "name": "Chamudu Hansana",
+    "email": "chamudu@swiftlogistics.com",
     "role": "admin",
-    "title": "Operations Manager"
+    "title": "System Administrator"
   },
   "tokens": {
     "accessToken": "eyJ...",
@@ -139,9 +139,9 @@ Authenticate and receive JWT tokens.
 
 | Role | Email | Password |
 |------|-------|----------|
-| Admin | sarah@swiftlogistics.com | password123 |
-| Customer | james@acmecorp.com | password123 |
-| Driver | mike@swiftlogistics.com | password123 |
+| Admin | chamudu@swiftlogistics.com | password123 |
+| Customer | newandie@swiftlogistics.com | password123 |
+| Driver | tharusha@swiftlogistics.com | password123 |
 
 ---
 
@@ -203,11 +203,11 @@ Get the authenticated user's profile.
   "success": true,
   "user": {
     "id": "USR-001",
-    "name": "Sarah Chen",
-    "email": "sarah@swiftlogistics.com",
+    "name": "Chamudu Hansana",
+    "email": "chamudu@swiftlogistics.com",
     "role": "admin",
-    "title": "Operations Manager",
-    "avatar": "SC",
+    "title": "System Administrator",
+    "avatar": "CH",
     "created_at": "2024-02-28T09:00:00.000Z"
   }
 }
@@ -229,9 +229,9 @@ Check if a token is valid (used by API Gateway).
   "valid": true,
   "user": {
     "userId": "USR-001",
-    "email": "sarah@swiftlogistics.com",
+    "email": "chamudu@swiftlogistics.com",
     "role": "admin",
-    "name": "Sarah Chen"
+    "name": "Chamudu Hansana"
   }
 }
 ```
@@ -249,9 +249,9 @@ Check if a token is valid (used by API Gateway).
   "success": true,
   "count": 3,
   "users": [
-    { "id": "USR-001", "name": "Sarah Chen", "role": "admin", ... },
-    { "id": "USR-002", "name": "James Wilson", "role": "customer", ... },
-    { "id": "USR-003", "name": "Mike Torres", "role": "driver", ... }
+    { "id": "USR-001", "name": "Chamudu Hansana", "role": "admin", ... },
+    { "id": "USR-002", "name": "Newandie", "role": "customer", ... },
+    { "id": "USR-003", "name": "Tharusha", "role": "driver", ... }
   ]
 }
 ```
@@ -562,7 +562,7 @@ const socket = io('http://localhost:4006', {
 socket.emit('authenticate', {
     userId: 'USR-001',
     role: 'admin',
-    name: 'Sarah'
+    name: 'Chamudu'
 });
 
 // Listen for order updates

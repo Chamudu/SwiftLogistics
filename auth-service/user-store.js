@@ -53,30 +53,48 @@ export async function seedUsers() {
     const demoUsers = [
         {
             id: 'USR-001',
-            name: 'Sarah Chen',
-            email: 'sarah@swiftlogistics.com',
+            name: 'Chamudu Hansana',
+            email: 'chamudu@swiftlogistics.com',
             password: 'password123',
             role: 'admin',
-            title: 'Operations Manager',
-            avatar: 'SC'
+            title: 'System Administrator',
+            avatar: 'CH'
         },
         {
             id: 'USR-002',
-            name: 'James Wilson',
-            email: 'james@acmecorp.com',
+            name: 'Newandie',
+            email: 'newandie@swiftlogistics.com',
             password: 'password123',
             role: 'customer',
-            title: 'Business Client',
-            avatar: 'JW'
+            title: 'Logistics Client',
+            avatar: 'NE'
         },
         {
             id: 'USR-003',
-            name: 'Mike Torres',
-            email: 'mike@swiftlogistics.com',
+            name: 'Tharusha',
+            email: 'tharusha@swiftlogistics.com',
             password: 'password123',
             role: 'driver',
             title: 'Delivery Driver',
-            avatar: 'MT'
+            avatar: 'TH'
+        },
+        {
+            id: 'USR-004',
+            name: 'Thivinya',
+            email: 'thivinya@swiftlogistics.com',
+            password: 'password123',
+            role: 'admin',
+            title: 'Operations Manager',
+            avatar: 'TV'
+        },
+        {
+            id: 'USR-005',
+            name: 'Santhosh',
+            email: 'santhosh@swiftlogistics.com',
+            password: 'password123',
+            role: 'customer',
+            title: 'Business Client',
+            avatar: 'SA'
         }
     ];
 
