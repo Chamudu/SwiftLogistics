@@ -1,0 +1,20 @@
+{
+    "name": "mock-wms",
+    "version": "1.0.0",
+    "description": "Mock Warehouse Management System - TCP/IP Service",
+    "main": "index.js",
+    "type": "module",
+    "scripts": {
+        "dev": "node index.js",
+        "start": "node index.js"
+    },
+    "keywords": [
+        "tcp",
+        "mock",
+        "wms",
+        "socket"
+    ],
+    "author": "Chamudu Hansana",
+    "license": "ISC",
+    "dependencies": {}
+}

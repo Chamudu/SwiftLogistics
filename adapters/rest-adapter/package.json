@@ -1,0 +1,24 @@
+{
+    "name": "rest-adapter",
+    "version": "1.0.0",
+    "description": "REST Protocol Adapter for SwiftLogistics - Integrates HTTP/REST with RabbitMQ",
+    "main": "index.js",
+    "type": "module",
+    "scripts": {
+        "dev": "node index.js",
+        "start": "node index.js"
+    },
+    "keywords": [
+        "rest",
+        "adapter",
+        "rabbitmq",
+        "middleware"
+    ],
+    "author": "Chamudu Hansana",
+    "license": "MIT",
+    "dependencies": {
+        "express": "^4.18.2",
+        "cors": "^2.8.5",
+        "amqplib": "^0.10.3"
+    }
+}

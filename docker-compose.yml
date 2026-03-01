@@ -1,0 +1,140 @@
+services:
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: swiftlogistics-rabbitmq
+    hostname: rabbitmq
+    ports:
+      # AMQP protocol port (for applications to connect)
+      - "5672:5672"
+      # Management UI port (for humans to access dashboard)
+      - "15672:15672"
+    environment:
+      # Default credentials (change in production!)
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin123
+      # Enable specific plugins
+      RABBITMQ_PLUGINS: rabbitmq_management
+    volumes:
+      # Persist data so messages survive container restart
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - swiftlogistics
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  # ==========================================
+  # 🗄️ PostgreSQL Database (NEW!)
+  # ==========================================
+  #
+  # WHAT IS THIS?
+  # PostgreSQL is a relational database — it stores data in tables
+  # with rows and columns, like a super-powered spreadsheet.
+  #
+  # WHY DO WE NEED IT?
+  # Right now, our services store data in-memory (arrays/Maps).
+  # When the server restarts, all data is LOST.
+  # PostgreSQL persists data to disk — it survives restarts.
+  #
+  # PORTS:
+  # - 5432: The default PostgreSQL port (same as MongoDB's 27017 or MySQL's 3306)
+  #
+  # CREDENTIALS (for development only!):
+  # - User: swiftlogistics
+  # - Password: password123
+  # - Database: swiftlogistics
+  #
+  postgres:
+    image: postgres:15-alpine
+    #       ↑ postgres = the database software
+    #       ↑ 15 = version 15 (stable, well-supported)
+    #       ↑ alpine = tiny Linux base image (~50MB vs ~350MB)
+    container_name: swiftlogistics-postgres
+    environment:
+      # These env vars are read by PostgreSQL on first startup
+      # to create the initial database and user
+      POSTGRES_USER: swiftlogistics # Database username
+      POSTGRES_PASSWORD: password123 # Database password
+      POSTGRES_DB: swiftlogistics # Database name (auto-created!)
+    ports:
+      - "5432:5432"
+      #  ↑ host:container
+      #  Your Node.js apps connect to localhost:5432
+    volumes:
+      # Persist database files to a Docker volume
+      # WITHOUT this, your data would vanish when the container stops!
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - swiftlogistics
+    healthcheck:
+      # pg_isready checks if PostgreSQL is accepting connections
+      test: [ "CMD-SHELL", "pg_isready -U swiftlogistics" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+  # ==========================================
+  # 🖥️ pgAdmin — PostgreSQL Web Interface
+  # ==========================================
+  #
+  # WHAT IS THIS?
+  # pgAdmin is a GUI for PostgreSQL — like RabbitMQ's Management UI
+  # but for your database. Browse tables, run SQL queries, see data.
+  #
+  # ACCESS:
+  # - URL: http://localhost:5050
+  # - Email: admin@swift.com
+  # - Password: admin123
+  #
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: swiftlogistics-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@swift.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+      PGADMIN_LISTEN_PORT: 5050
+      PGADMIN_SERVER_JSON_FILE: /pgadmin4/servers.json
+    ports:
+      - "5050:5050"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./pgadmin-servers.json:/pgadmin4/servers.json:ro
+    networks:
+      - swiftlogistics
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+  # Redis Cache (for future use)
+  # Uncomment when you need it
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: swiftlogistics-redis
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis_data:/data
+  #   networks:
+  #     - swiftlogistics
+  #   restart: unless-stopped
+
+  # Named volumes for data persistence
+volumes:
+  rabbitmq_data:
+    driver: local
+  postgres_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+  # redis_data:
+  #   driver: local
+
+networks:
+  swiftlogistics:
+    driver: bridge

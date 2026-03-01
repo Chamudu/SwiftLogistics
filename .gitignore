@@ -1,0 +1,200 @@
+# ============================================
+# SwiftLogistics .gitignore
+# ============================================
+
+# Documentation and AI agent files (private)
+.agent/
+
+# Assignment materials (academic use only, not part of public project)
+.assignment/
+
+# Temporary files
+myTemp/
+temp/
+
+# ============================================
+# Node.js
+# ============================================
+
+# Dependencies
+node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Testing
+coverage/
+*.lcov
+.nyc_output
+
+# Production builds
+dist/
+build/
+*.tsbuildinfo
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.development
+.env.test
+.env.production
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+pnpm-debug.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# ============================================
+# IDEs and Editors
+# ============================================
+
+# VSCode
+.vscode/
+!.vscode/settings.json.example
+!.vscode/extensions.json
+*.code-workspace
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# ============================================
+# Operating Systems
+# ============================================
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+
+# Linux
+*~
+
+# ============================================
+# Docker
+# ============================================
+
+# Docker volumes
+docker/volumes/
+*.dockerignore
+
+# ============================================
+# Database
+# ============================================
+
+# PostgreSQL
+*.sql
+*.dump
+
+# SQLite
+*.sqlite
+*.sqlite3
+*.db
+
+# ============================================
+# Certificates and Keys
+# ============================================
+
+# SSL/TLS
+*.pem
+*.key
+*.crt
+*.p12
+*.jks
+
+# SSH
+*.pub
+id_rsa
+id_dsa
+
+# ============================================
+# Project Specific
+# ============================================
+
+# Screenshots and recordings
+screenshots/
+recordings/
+*.png
+*.jpg
+*.gif
+!docs/**/*.png
+!docs/**/*.jpg
+
+# Backup files
+*.bak
+*.backup
+*.old
+
+# Archive files
+*.zip
+*.tar
+*.tar.gz
+*.rar
+
+# Generated documentation
+docs/api/generated/
+
+# ============================================
+# RabbitMQ (when we add it)
+# ============================================
+rabbitmq-data/
+
+# ============================================
+# Redis (when we add it)
+# ============================================
+dump.rdb
+appendonly.aof
+
+# ============================================
+# Misc
+# ============================================
+.cache/
+.tmp/
+LICENSE
+DEPLOYMENT.md
+
+middleware-dashboard.html
+monitoring-dashboard.html
+test-dashboard.html
+test-all-protocols.js
+test-auth.js
+test*.js
+*.md
+!DOCKER.md
+!README.md
+!SETUP_GUIDE.md
+!DEPLOYMENT.md
+*.txt
