@@ -67,9 +67,9 @@ export const AuthProvider = ({ children }) => {
     // Keeps backward compatibility with the role-selection cards
     const quickLogin = async (role) => {
         const credentials = {
-            admin: { email: 'sarah@swiftlogistics.com', password: 'password123' },
-            customer: { email: 'james@acmecorp.com', password: 'password123' },
-            driver: { email: 'mike@swiftlogistics.com', password: 'password123' }
+            admin: { email: 'chamudu@swiftlogistics.com', password: 'password123' },
+            customer: { email: 'newandie@swiftlogistics.com', password: 'password123' },
+            driver: { email: 'tharusha@swiftlogistics.com', password: 'password123' }
         };
 
         const cred = credentials[role];

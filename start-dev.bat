@@ -5,6 +5,35 @@ echo ===================================================
 echo.
 
 :: ─────────────────────────────────────────────
+:: LAYER 0 — Install dependencies (first run)
+:: ─────────────────────────────────────────────
+if not exist "node_modules" (
+    echo [SETUP] node_modules not found — running npm install for all workspaces...
+    npm install
+    if errorlevel 1 (
+        echo [ERROR] npm install failed. Please check your Node.js installation.
+        pause
+        exit /b 1
+    )
+    echo [SETUP] Workspace dependencies installed successfully.
+    echo.
+)
+
+if not exist "client-app\node_modules" (
+    echo [SETUP] client-app node_modules not found — running npm install for frontend...
+    cd client-app
+    npm install
+    if errorlevel 1 (
+        echo [ERROR] client-app npm install failed.
+        pause
+        exit /b 1
+    )
+    cd ..
+    echo [SETUP] Frontend dependencies installed successfully.
+    echo.
+)
+
+:: ─────────────────────────────────────────────
 :: LAYER 0 — Infrastructure (Docker)
 :: ─────────────────────────────────────────────
 echo [1/15] Starting Docker containers (RabbitMQ + PostgreSQL + pgAdmin)...
