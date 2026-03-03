@@ -3,6 +3,33 @@
 echo "🚀 SwiftLogistics Development Environment"
 echo "==========================================="
 
+# ─────────────────────────────────────────────
+# LAYER 0 — Install dependencies (first run)
+# ─────────────────────────────────────────────
+if [ ! -d "node_modules" ]; then
+    echo "[SETUP] node_modules not found — running npm install for all workspaces..."
+    npm install
+    if [ $? -ne 0 ]; then
+        echo "[ERROR] npm install failed. Please check your Node.js installation."
+        exit 1
+    fi
+    echo "[SETUP] Workspace dependencies installed successfully."
+    echo ""
+fi
+
+if [ ! -d "client-app/node_modules" ]; then
+    echo "[SETUP] client-app node_modules not found — running npm install for frontend..."
+    cd client-app
+    npm install
+    if [ $? -ne 0 ]; then
+        echo "[ERROR] client-app npm install failed."
+        exit 1
+    fi
+    cd ..
+    echo "[SETUP] Frontend dependencies installed successfully."
+    echo ""
+fi
+
 # Function to open a new terminal tab/window based on OS
 open_terminal() {
     local title="$1"
@@ -95,9 +122,21 @@ echo "[15/15] Starting Frontend (Port 5173)..."
 open_terminal "Frontend" "cd client-app && npm run dev"
 
 echo ""
-echo "==========================================="
-echo "  ✅ All 15 services started!"
-echo "==========================================="
+echo "==================================================="
+echo "   All 15 services started!"
+echo "==================================================="
+echo ""
+echo "   Frontend:     http://localhost:5173"
+echo "   API Gateway:  http://localhost:5000"
+echo "   Metrics:      http://localhost:5000/metrics"
+echo "   Health:       http://localhost:5000/health"
+echo "   RabbitMQ:     http://localhost:15672  (guest/guest)"
+echo "   pgAdmin:      http://localhost:5050   (admin@swift.com/admin)"
+echo ""
+echo "   Close this window to keep services running"
+echo "   To stop all: close each terminal window"
+echo ""
+read -p "Press Enter to exit..."
 echo ""
 echo "  🖥️  Frontend:     http://localhost:5173"
 echo "  🔗  API Gateway:  http://localhost:5000"
