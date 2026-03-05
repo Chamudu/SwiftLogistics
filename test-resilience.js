@@ -6,7 +6,7 @@
 import fetch from 'node-fetch';
 
 const GATEWAY_URL = 'http://localhost:5000';
-const API_KEY = 'test-key-001';
+const API_KEY = process.env.TEST_API_KEY || 'test-key-001';
 
 async function floodRequests(count = 20) {
     console.log(`🌊 Flooding ${count} requests...`);

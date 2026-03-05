@@ -51,12 +51,15 @@ const { Pool } = pg;
 // ==========================================
 
 // In production, these come from environment variables
+if (!process.env.DB_PASSWORD) {
+    throw new Error('DB_PASSWORD environment variable is required');
+}
 const DB_CONFIG = {
     host: process.env.DB_HOST || 'localhost',
     port: parseInt(process.env.DB_PORT) || 5432,
     database: process.env.DB_NAME || 'swiftlogistics',
     user: process.env.DB_USER || 'swiftlogistics',
-    password: process.env.DB_PASSWORD || 'password123',
+    password: process.env.DB_PASSWORD,
 
     // Pool settings
     max: 20,                 // Maximum 20 connections in the pool
