@@ -11,6 +11,7 @@
 
 import express from 'express';
 import cors from 'cors';
+import 'dotenv/config';
 import { resilientFetch, resilientExecute } from './resilience.js'; // Phase 3.4
 import logger from './logger.js'; // Phase 3.2
 
@@ -143,11 +144,13 @@ app.use(limiter);
 // 4. Neither found                              → 401 Unauthorized
 
 // API Keys still needed for internal service-to-service communication
-const VALID_API_KEYS = new Set([
-    'swift-123-secret',  // Order Service
-    'logistic-999-key',  // Internal Service B
-    'test-key-001'       // Test Suite
-]);
+if (!process.env.VALID_API_KEYS) {
+    throw new Error('VALID_API_KEYS environment variable is required');
+}
+const VALID_API_KEYS = new Set(process.env.VALID_API_KEYS.split(',').map(k => k.trim()).filter(Boolean));
+if (VALID_API_KEYS.size === 0) {
+    throw new Error('VALID_API_KEYS must contain at least one valid API key');
+}
 
 // Routes that DON'T require authentication
 const PUBLIC_PATHS = [

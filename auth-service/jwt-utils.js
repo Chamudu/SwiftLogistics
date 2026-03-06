@@ -35,7 +35,7 @@
  * we create, and when a token comes back, we check if our stamp is on it.
  * If someone tries to create a fake token, they don't have our stamp → rejected.
  * 
- * ⚠️ In production, this would come from environment variables, never hardcoded!
+ * ⚠️ In production, these must come from environment variables, never hardcoded!
  */
 
 import jwt from 'jsonwebtoken';
@@ -44,12 +44,15 @@ import jwt from 'jsonwebtoken';
 // 🔑 CONFIGURATION
 // ==========================================
 
-// Secret keys for signing tokens
-// In production, these come from environment variables like:
-//   process.env.JWT_ACCESS_SECRET
-//   process.env.JWT_REFRESH_SECRET
-const ACCESS_TOKEN_SECRET = 'swift-access-secret-key-2024';
-const REFRESH_TOKEN_SECRET = 'swift-refresh-secret-key-2024';
+// Secret keys for signing tokens — loaded from environment variables
+if (!process.env.JWT_ACCESS_SECRET) {
+    throw new Error('JWT_ACCESS_SECRET environment variable is required');
+}
+if (!process.env.JWT_REFRESH_SECRET) {
+    throw new Error('JWT_REFRESH_SECRET environment variable is required');
+}
+const ACCESS_TOKEN_SECRET = process.env.JWT_ACCESS_SECRET;
+const REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_SECRET;
 
 // Token lifetimes
 const ACCESS_TOKEN_EXPIRY = '15m';   // 15 minutes

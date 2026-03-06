@@ -19,6 +19,7 @@
  * Each step is logged in the saga_log JSONB column.
  */
 
+require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
@@ -39,7 +40,10 @@ const app = express();
 const PORT = 4004;
 const GATEWAY_URL = 'http://localhost:5000';
 const WS_SERVICE_URL = 'http://localhost:4006';
-const API_KEY = 'swift-123-secret';
+if (!process.env.ORDER_API_KEY) {
+    throw new Error('ORDER_API_KEY environment variable is required');
+}
+const API_KEY = process.env.ORDER_API_KEY;
 
 // 🔌 WebSocket event emitter
 // Calls the WebSocket service's REST API to push real-time updates
