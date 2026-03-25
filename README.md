@@ -2,7 +2,7 @@
 
 A full-stack middleware architecture integrating heterogeneous systems (CMS, ROS, WMS) for logistics management, featuring JWT authentication, PostgreSQL persistence, and a React dashboard.
 
-## 🎯 Project Overview
+##  Project Overview
 
 This project demonstrates a complete middleware solution:
 
@@ -15,7 +15,7 @@ This project demonstrates a complete middleware solution:
 - **WebSocket** — Real-time order tracking via Socket.IO
 - **React Dashboard** — Role-based UI with dark theme
 
-## 📁 Project Structure
+##  Project Structure
 
 ```
 SwiftLogistics/
@@ -69,7 +69,7 @@ SwiftLogistics/
 └── test-gateway.js              # Gateway test suite
 ```
 
-## 🚀 Quick Start
+##  Quick Start
 
 ### Prerequisites
 
@@ -160,49 +160,59 @@ node test-all-protocols.js  # Protocol integration tests
 node test-gateway.js        # Gateway tests
 ```
 
-## 🏗️ Architecture
+##  Architecture
 
 ```
-┌─────────────────┐
-│   React Client  │ ← Role-based dashboards (admin/customer/driver)
-│   (Port 5173)   │
-└────────┬────────┘
-         │ JWT Bearer Token
-         ▼
-┌──────────────────────────────────────────────────────┐
-│              🌐 API GATEWAY (Port 5000)               │
-│  ┌─────────┐  ┌──────────┐  ┌───────────────────┐   │
-│  │JWT Auth  │  │Rate Limit│  │Intelligent Routing│   │
-│  └─────────┘  └──────────┘  └───────────────────┘   │
-└───┬─────────┬──────────┬──────────┬─────────────────┘
-    │         │          │          │
-    ▼         ▼          ▼          ▼
-┌────────┐┌────────┐┌────────┐┌──────────┐
-│  Auth  ││ Order  ││REST    ││SOAP      │  ← Service Layer
-│Service ││Service ││Adapter ││Adapter   │
-│ :4005  ││ :4004  ││ :3001  ││ :3002    │
-└───┬────┘└───┬────┘└───┬────┘└────┬─────┘
-    │         │         │          │         ┌────────┐
-    ▼         ▼         ▼          ▼         │TCP     │
-┌──────────────────┐  ┌──────────────────┐   │Adapter │
-│   PostgreSQL     │  │    RabbitMQ      │   │ :3003  │
-│   (Port 5432)    │  │   (Port 5672)    │   └───┬────┘
-│  ┌─────┐┌──────┐│  │  ┌─────┐┌──────┐│       │
-│  │users││orders││  │  │queue ││queue ││       ▼
-│  └─────┘└──────┘│  │  └─────┘└──────┘│   RabbitMQ
-└──────────────────┘  └────────┬────────┘
-                               │
-                    ┌──────────┼──────────┐
-                    ▼          ▼          ▼
-               ┌────────┐┌────────┐┌────────┐
-               │  ROS   ││  CMS   ││  WMS   │  ← Workers
-               │ Worker ││ Worker ││ Worker │
-               └───┬────┘└───┬────┘└───┬────┘
-                   ▼         ▼         ▼
-               ┌────────┐┌────────┐┌────────┐
-               │Mock ROS││Mock CMS││Mock WMS│  ← Simulated Systems
-               │ :4002  ││ :4000  ││ :4001  │
-               └────────┘└────────┘└────────┘
+  LAYER              COMPONENTS                                               TIER
+  ─────              ──────────                                               ────
+ ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
+                     ┌───────────────────────────────────────────────┐
+  PRESENTATION       │           React Dashboard (:5173)             │         Tier 1
+                     │       JWT Auth  •  Role-Based Views           │       (Client)
+                     │       Socket.IO client for live updates       │
+                     └────────────────────┬──────────────────────────┘
+    ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│┄┄┄┄┄HTTP + WS┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
+                     ┌────────────────────▼──────────────────────────┐
+  GATEWAY            │           API GATEWAY (:5000)                 │         Tier 2
+                     │    JWT Auth • Rate Limit • Routing • Logs     │       (Server)
+                     └──┬────────┬────────┬────────┬────────┬─────── ┘
+   ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│┄┄┄┄┄┄┄┄│┄┄┄┄┄┄┄┄│┄HTTP┄┄┄│┄┄┄┄┄┄┄┄│┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
+                        ▼        ▼        ▼        ▼        ▼
+                   ┌────────┐┌────────┐┌────────┐┌────────┐┌────────┐ ┌────────┐
+  BUSINESS         │  Auth  ││ Order  ││  REST  ││  SOAP  ││  TCP   │ │  WS    │
+  LOGIC            │Service ││Service ││Adapter ││Adapter ││Adapter │ │Service │
+                   │ :4005  ││ :4004  ││ :3001  ││ :3002  ││ :3003  │ │ :4006  │
+                   └───┬────┘└─┬──┬───┘└───┬────┘└───┬────┘└───┬────┘ └───▲────┘
+                       │       │  │        │         │         │          │
+                       │       │  │SAGA    └─────────┼─────────┘     REST POST
+                       │       │  │(HTTP)            │          /emit/order-update
+                       │       │  └──────────────────┤                   │
+                       │       │                     │            ┌──────┘
+   ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│┄┄┄┄┄┄┄│┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄ ┄│┄AMQP┄┄┄┄┄ ┄│┄┄┄┄┄┄┄┄┄┄┄┄┄
+                       │       │                     ▼            │
+  MESSAGE              │       │     ┌───────────────────────────────────┐
+  BROKER               │       │     │         RabbitMQ (:5672)          │     Tier 2
+                       │       │     │    3 Exchanges  •  11 Queues      │   (Server)
+                       │       │     └────┬──────────┬──────────┬────────┘
+ ┄┄┄  ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│┄┄┄┄┄┄┄│┄┄┄┄┄┄┄┄┄│┄AMQP┄┄┄┄┄│┄┄┄┄┄┄┄┄┄┄│┄┄┄┄┄┄┄┄┄┄┄┄┄┄
+                       │       │         ▼           ▼           ▼
+  INTEGRATION          │       │    ┌────────┐  ┌────────┐  ┌────────┐
+  (Workers)            │       │    │  ROS   │  │  CMS   │  │  WMS   │
+                       │       │    │ Worker │  │ Worker │  │ Worker │
+                       │       │    └───┬────┘  └───┬────┘  └───┬────┘
+   ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│┄┄┄┄┄┄┄│┄┄┄┄┄┄┄ │┄REST┄┄┄┄┄┄│┄SOAP┄┄┄┄ ┄│┄TCP┄┄┄┄┄┄┄┄┄┄┄
+                       ▼       ▼        ▼           ▼           ▼
+                   ┌────────────────┐┌────────┐ ┌────────┐ ┌────────┐
+  DATA /           │  PostgreSQL    ││Mock ROS│ │Mock CMS│ │Mock WMS│     Tier 3
+  EXTERNAL         │    :5432       ││ :4002  │ │ :4000  │ │ :4001  │   (Data /
+  SYSTEMS          │                ││  REST  │ │  SOAP  │ │  TCP   │  External)
+                   │ users│orders│  ││        │ │        │ │        │
+                   │ refresh_tokens ││        │ │        │ │        │
+                   └───────┬────────┘└────────┘ └────────┘ └────────┘
+   ┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄│┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄┄
+                   ┌───────▼────────┐
+  ADMIN            │  pgAdmin :5050 │   Standalone Docker container
+  TOOLS            └────────────────┘   RabbitMQ UI :15672
 ```
 
 ## 📊 Service Port Map
@@ -224,18 +234,6 @@ node test-gateway.js        # Gateway tests
 | 5672 | RabbitMQ (AMQP) | AMQP |
 | 15672 | RabbitMQ (UI) | HTTP |
 | 5050 | pgAdmin (UI) | HTTP |
-
-## 📝 Implementation Progress
-
-- [x] **Phase 1: Foundation** — Mock services (REST, SOAP, TCP)
-- [x] **Phase 2: Integration** — Adapters, Workers, RabbitMQ
-- [x] **Phase 3: Gateway & Security** — API Gateway, rate limiting, resilience
-- [x] **Phase 3.5: SAGA Pattern** — Order Service, distributed transactions
-- [x] **Auth Service** — JWT login, registration, RBAC, refresh tokens
-- [x] **Database** — PostgreSQL, connection pooling, schema auto-creation
-- [x] **Client App** — React dashboard, real login, role-based views
-- [x] **WebSocket Server** — Real-time order tracking via Socket.IO
-- [ ] **Polish** — Wire all pages to live data
 
 ## 📚 Documentation
 
