@@ -270,5 +270,3 @@ A personal learning project exploring middleware architecture patterns and micro
 MIT License — Feel free to use this for your own learning!
 
 ---
-
-**Built with ❤️ as a learning journey into middleware architecture and distributed systems.**
