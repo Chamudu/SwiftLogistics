@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Activity, CheckCircle, AlertCircle, Clock, Heart, Zap, BarChart3, RefreshCw, Wifi, WifiOff, Terminal, Box, Users, Target, ArrowUpRight, ArrowDownRight, Server } from 'lucide-react';
+import { Activity, Clock, Heart, Zap, BarChart3, RefreshCw, Wifi, WifiOff, Terminal, Box, Users, Target, ArrowUpRight, ArrowDownRight, Server } from 'lucide-react';
 import { socketService } from '../services/socket';
 import { api } from '../services/api';
 
@@ -51,14 +51,6 @@ const Dashboard = () => {
             socketService.offConnectionChange(setWsConnected);
         };
     }, []);
-
-    const _getEventIcon = (event) => {
-        if (event.status === 'COMPLETED' || event.sagaStep === 'LOGISTICS' || event.sagaStep === 'DONE')
-            return <CheckCircle size={16} className="text-emerald-400" />;
-        if (event.status === 'FAILED')
-            return <AlertCircle size={16} className="text-red-400" />;
-        return <Activity size={16} className="text-blue-400" />;
-    };
 
     const formatUptime = (seconds) => {
         if (!seconds) return '—';
