@@ -6,6 +6,7 @@
   "type": "module",
   "private": true,
   "workspaces": [
+    "client-app",
     "mock-services/*",
     "adapters/*",
     "shared/*",

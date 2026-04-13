@@ -25,7 +25,7 @@ const Warehouse = () => {
             try {
                 const res = await api.request('GET', '/api/warehouse/inventory');
                 setInventory(res.inventory || []);
-            } catch (err) {
+            } catch {
                 // Fallback to initial mock data if gateway isn't passing through GET inventory
                 setInventory([
                     { sku: 'ITEM-001', name: 'Laptop Computer', quantity: 50, zone: 'A1' },

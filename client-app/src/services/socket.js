@@ -72,7 +72,7 @@ class SocketService {
             this.listeners['connection'].forEach(cb => cb(false));
         });
 
-        this.socket.on('connect_error', (err) => {
+        this.socket.on('connect_error', () => {
             console.log('⚠️  WebSocket connection error (server may be down)');
             this.connected = false;
             this.listeners['connection'].forEach(cb => cb(false));
