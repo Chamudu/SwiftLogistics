@@ -73,7 +73,8 @@ SwiftLogistics/
 
 ### Prerequisites
 
-- **Node.js** 18+
+- **Node.js** 18+ (v20 LTS recommended)
+- **npm** 9+ (bundled with Node 18+; required for workspace support)
 - **Docker Desktop** (for RabbitMQ + PostgreSQL)
 - **Git**
 
@@ -92,26 +93,19 @@ This starts **3 containers**:
 
 ### 2. Install Dependencies
 
-```bash
-# Core services
-cd shared/database && npm install && cd ../..
-cd auth-service && npm install && cd ..
-cd order-service && npm install && cd ..
-cd websocket-service && npm install && cd ..
-cd api-gateway && npm install && cd ..
-cd client-app && npm install && cd ..
+This repo uses **npm workspaces**. A single command from the root installs all workspace packages at once:
 
-# Mock services & adapters
-cd mock-services/mock-ros && npm install && cd ../..
-cd mock-services/mock-cms && npm install && cd ../..
-cd mock-services/mock-wms && npm install && cd ../..
-cd adapters/rest-adapter && npm install && cd ../..
-cd adapters/soap-adapter && npm install && cd ../..
-cd adapters/tcp-adapter && npm install && cd ../..
-cd workers/ros-worker && npm install && cd ../..
-cd workers/cms-worker && npm install && cd ../..
-cd workers/wms-worker && npm install && cd ../..
+```bash
+npm install
 ```
+
+> **For CI / reproducible installs** (e.g. in automation or after cloning on a fresh machine), prefer:
+> ```bash
+> npm ci
+> ```
+> `npm ci` requires the committed `package-lock.json` and installs exactly the locked versions.
+> Always commit `package-lock.json` when adding or updating dependencies so that CI and other
+> contributors get the same dependency tree.
 
 ### 3. Start Services
 
@@ -257,7 +251,23 @@ node test-gateway.js        # Gateway tests
 | **Message Broker** | RabbitMQ 3.12, amqplib |
 | **Protocols** | REST, SOAP (soap), TCP (net) |
 | **Containers** | Docker, Docker Compose |
+| **CI** | GitHub Actions (lint, build, docker-compose validation) |
 | **DB Admin** | pgAdmin 4 |
+
+## ⚙️ CI/CD
+
+This project uses **GitHub Actions** for continuous integration. The workflow runs automatically on every push and pull request to any branch.
+
+| Step | Command | What it checks |
+|------|---------|----------------|
+| Install | `npm ci` | Reproducible workspace install from `package-lock.json` |
+| Lint | `npm run lint --workspace client-app` | ESLint rules on the React frontend |
+| Build | `npm run build --workspace client-app` | Vite production build succeeds |
+| Validate | `docker compose config -q` | `docker-compose.yml` syntax is valid |
+
+> **Contributor note:** Always keep `package-lock.json` up to date.
+> Run `npm install` after adding or updating any dependency, then commit the updated lockfile.
+> CI uses `npm ci` which requires `package-lock.json` to be present and in sync with `package.json`.
 
 ## 👤 About
 
