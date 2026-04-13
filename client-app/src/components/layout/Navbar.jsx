@@ -1,7 +1,6 @@
 import React from 'react';
-import { Bell, Search, LogOut } from 'lucide-react';
+import { Bell, Search } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
 
 const roleColors = {
     admin: 'bg-blue-600',
@@ -10,8 +9,7 @@ const roleColors = {
 };
 
 const Navbar = () => {
-    const { user, logout } = useAuth();
-    const navigate = useNavigate();
+    const { user } = useAuth();
 
     return (
         <header className="h-16 border-b border-slate-800 fixed top-0 right-0 left-64 z-10 flex items-center justify-between px-6 backdrop-blur-md bg-slate-950/80">

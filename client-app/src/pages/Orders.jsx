@@ -26,7 +26,7 @@ const Orders = () => {
         fetchOrders();
 
         // Listen for real-time order updates
-        const handleOrderUpdate = (event) => {
+        const handleOrderUpdate = () => {
             // Refresh orders when we receive an update
             fetchOrders();
         };

@@ -52,7 +52,7 @@ const Dashboard = () => {
         };
     }, []);
 
-    const getEventIcon = (event) => {
+    const _getEventIcon = (event) => {
         if (event.status === 'COMPLETED' || event.sagaStep === 'LOGISTICS' || event.sagaStep === 'DONE')
             return <CheckCircle size={16} className="text-emerald-400" />;
         if (event.status === 'FAILED')
